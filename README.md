@@ -20,47 +20,7 @@ Una aplicación web moderna para escribir, crear y compartir poesías con autent
 - **Routing**: React Router v6
 - **Estado**: React Context API
 
-## 📦 Instalación
 
-### Requisitos Previos
-- Node.js 16+ y npm
-- Cuenta en [Appwrite Cloud](https://cloud.appwrite.io) o instancia local
-
-### Pasos
-
-1. **Clona el repositorio**
-```bash
-cd proyecto_poesia
-```
-
-2. **Instala las dependencias**
-```bash
-npm install
-```
-
-3. **Configura las variables de entorno**
-
-Copia el archivo `.env.example` a `.env.local` y completa los valores:
-```bash
-cp .env.example .env.local
-```
-
-Edita `.env.local` con tus credenciales de Appwrite:
-```
-VITE_APPWRITE_ENDPOINT=https://cloud.appwrite.io/v1
-VITE_APPWRITE_PROJECT_ID=your_project_id
-VITE_APPWRITE_API_KEY=your_api_key
-VITE_APPWRITE_DATABASE_ID=your_database_id
-VITE_APPWRITE_POEMS_COLLECTION_ID=your_poems_collection_id
-VITE_APPWRITE_USERS_COLLECTION_ID=your_users_collection_id
-```
-
-4. **Inicia el servidor de desarrollo**
-```bash
-npm run dev
-```
-
-La aplicación se abrirá en [http://localhost:5173](http://localhost:5173)
 
 ## 🎯 Estructura del Proyecto
 
@@ -99,43 +59,7 @@ src/
 └── index.css           # Estilos globales
 ```
 
-## 🔧 Configuración de Appwrite
 
-### Crear base de datos y colecciones
-
-1. **Base de Datos**
-   - Nombre: `poesia_db`
-   - ID: `poesia`
-
-2. **Colección de Poesías** (`poems`)
-   - Atributos:
-     - `userId` (String, requerido)
-     - `title` (String, requerido)
-     - `content` (String, requerido)
-     - `templateType` (String, requerido)
-     - `theme` (String, requerido)
-     - `createdAt` (DateTime)
-     - `updatedAt` (DateTime)
-     - `published` (Boolean)
-
-3. **Colección de Usuarios** (`users`)
-   - Atributos:
-     - `email` (String, requerido)
-     - `name` (String, requerido)
-     - `bio` (String)
-     - `createdAt` (DateTime)
-
-## 📝 Cómo Usar
-
-1. **Registro**: Crea una nueva cuenta con email y contraseña
-2. **Dashboard**: Visualiza tus poesías (borradores y publicadas)
-3. **Crear Poesía**: 
-   - Haz clic en "Nueva Poesía"
-   - Elige una plantilla
-   - Completa el formulario
-   - Guarda como borrador o publica
-4. **Editar**: Modifica tus poesías desde el Dashboard
-5. **Eliminar**: Borra poesías que no quieras
 
 ## 🎨 Plantillas Disponibles
 
@@ -146,19 +70,6 @@ src/
 - **Acróstico**: Primera letra de cada verso forma una palabra
 - **Reflexión Poética**: Texto libre y emotivo
 
-## 🔐 Seguridad
-
-- Contraseñas hasheadas con Appwrite
-- Autenticación basada en sesiones
-- Recuperación de contraseña segura
-- Variables de entorno para credenciales
-
-## 🚀 Despliegue
-
-### Build para Producción
-```bash
-npm run build
-```
 
 ### Requisitos de Despliegue
 - Node.js 16+
@@ -178,29 +89,10 @@ Este proyecto implementa:
 - **Componentes Funcionales**: Enfoque moderno de React
 - **Custom Hooks**: Reutilización de lógica
 
-## 🐛 Solución de Problemas
-
-### Error de conexión a Appwrite
-- Verifica que el endpoint y credentials sean correctos
-- Asegúrate que la API está disponible
-
-### Contraseña débil
-- Debe tener 8+ caracteres, mayúscula, minúscula y número
-
-### Base de datos no encontrada
-- Crea la base de datos y colecciones en Appwrite
-- Verifica los IDs en .env.local
-
-## 📖 Documentación Útil
-
-- [Documentación de Appwrite](https://appwrite.io/docs)
-- [React Documentation](https://react.dev)
-- [TypeScript Handbook](https://www.typescriptlang.org/docs)
-- [Tailwind CSS Docs](https://tailwindcss.com/docs)
 
 ## 📜 Licencia
 
-Proyecto de estudio para ADSO - 2024
+Proyecto de estudio ADSO - 2026
 
 ## ✍️ Autor
 
