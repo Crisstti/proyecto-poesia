@@ -1,0 +1,87 @@
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { User, AuthContextType } from '../types';
+import { authService, userService } from '../services';
+
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true); // Solo para la verificación inicial
+
+  useEffect(() => {
+    checkAuth();
+  }, []);
+
+  const checkAuth = async () => {
+    try {
+      const currentUser = await authService.getCurrentUser();
+      setUser(currentUser);
+    } catch (error) {
+      console.error('Error checking auth:', error);
+      setUser(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const register = async (email: string, password: string, name: string) => {
+    await authService.register(email, password, name);
+    const user = await authService.getCurrentUser();
+
+    if (user) {
+      await userService.createUserProfile(user.$id, email, name);
+      setUser(user);
+    }
+  };
+
+  const login = async (email: string, password: string) => {
+    await authService.login(email, password);
+    const user = await authService.getCurrentUser();
+    setUser(user);
+  };
+
+  const logout = async () => {
+    await authService.logout();
+    setUser(null);
+  };
+
+  const resetPassword = async (email: string) => {
+    await authService.sendPasswordResetEmail(email);
+  };
+
+  const updateProfile = async (name: string) => {
+    await authService.updateProfile(name);
+    const updatedUser = await authService.getCurrentUser();
+    setUser(updatedUser);
+  };
+
+  const updatePassword = async (oldPassword: string, newPassword: string) => {
+    await authService.updatePassword(oldPassword, newPassword);
+  };
+
+  const value: AuthContextType = {
+    user,
+    loading,
+    isAuthenticated: !!user,
+    login,
+    register,
+    logout,
+    resetPassword,
+    updateProfile,
+    updatePassword
+  };
+
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+    </AuthContext.Provider>
+  );
+};
+
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error('useAuth must be used within AuthProvider');
+  }
+  return context;
+};
