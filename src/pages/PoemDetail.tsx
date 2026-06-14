@@ -16,21 +16,9 @@ export const PoemDetail: React.FC = () => {
 
   useEffect(() => {
     const loadPoem = async () => {
-      if (!id) {
-        setNotFound(true);
-        setLoading(false);
-        return;
-      }
-
-      // 1. Buscar primero en las poesías ya cargadas del usuario (más rápido)
+      if (!id) { setNotFound(true); setLoading(false); return; }
       const ownPoem = getPoem(id);
-      if (ownPoem) {
-        setPoem(ownPoem);
-        setLoading(false);
-        return;
-      }
-
-      // 2. Si no está (puede ser de otro usuario, vista desde Explorar), pedirla directo
+      if (ownPoem) { setPoem(ownPoem); setLoading(false); return; }
       try {
         const fetchedPoem = await poemsService.getPoem(id);
         setPoem(fetchedPoem);
@@ -41,24 +29,21 @@ export const PoemDetail: React.FC = () => {
         setLoading(false);
       }
     };
-
-    if (!poemsLoading) {
-      loadPoem();
-    }
+    if (!poemsLoading) loadPoem();
   }, [id, poemsLoading]);
 
   if (loading || poemsLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p className="text-gray-600">Cargando poesía...</p>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+        <p className="text-gray-600 dark:text-gray-300">Cargando poesía...</p>
       </div>
     );
   }
 
   if (notFound || !poem) {
     return (
-      <div className="min-h-screen flex items-center justify-center flex-col gap-4">
-        <p className="text-gray-600 text-lg">No se encontró la poesía.</p>
+      <div className="min-h-screen flex items-center justify-center flex-col gap-4 bg-gray-50 dark:bg-gray-900">
+        <p className="text-gray-600 dark:text-gray-300 text-lg">No se encontró la poesía.</p>
         <button
           onClick={() => navigate('/dashboard')}
           className="bg-primary text-white px-6 py-2 rounded-lg"
@@ -70,7 +55,7 @@ export const PoemDetail: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <PoemView poem={poem} onClose={() => navigate(-1)} />
     </div>
   );

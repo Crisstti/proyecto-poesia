@@ -10,7 +10,7 @@ export const LoginForm: React.FC = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  
+
   const { login } = useAuth();
   const navigate = useNavigate();
 
@@ -18,15 +18,9 @@ export const LoginForm: React.FC = () => {
     e.preventDefault();
     setError('');
     setLoading(true);
-
     try {
-      if (!validateEmail(email)) {
-        throw new Error('Email inválido');
-      }
-      if (!password) {
-        throw new Error('Contraseña requerida');
-      }
-
+      if (!validateEmail(email)) throw new Error('Email inválido');
+      if (!password) throw new Error('Contraseña requerida');
       await login(email, password);
       navigate('/dashboard');
     } catch (err) {
@@ -38,17 +32,17 @@ export const LoginForm: React.FC = () => {
 
   return (
     <form onSubmit={handleSubmit} className="w-full max-w-md mx-auto space-y-4">
-      <h2 className="text-2xl font-bold text-gray-800 mb-6">Inicia Sesión</h2>
-      
+      <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-6">Inicia Sesión</h2>
+
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex gap-3">
+        <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg p-4 flex gap-3">
           <AlertCircle className="text-red-600 flex-shrink-0" size={20} />
-          <p className="text-red-700">{error}</p>
+          <p className="text-red-700 dark:text-red-400">{error}</p>
         </div>
       )}
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Email</label>
         <div className="relative">
           <Mail className="absolute left-3 top-3 text-gray-400" size={20} />
           <input
@@ -56,14 +50,14 @@ export const LoginForm: React.FC = () => {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="tu@email.com"
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+            className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500"
             disabled={loading}
           />
         </div>
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">Contraseña</label>
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Contraseña</label>
         <div className="relative">
           <Lock className="absolute left-3 top-3 text-gray-400" size={20} />
           <input
@@ -71,7 +65,7 @@ export const LoginForm: React.FC = () => {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="Tu contraseña"
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+            className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500"
             disabled={loading}
           />
         </div>
@@ -86,11 +80,17 @@ export const LoginForm: React.FC = () => {
       </button>
 
       <div className="space-y-2">
-        <p className="text-center text-gray-600">
-          ¿Olvidaste tu contraseña? <a href="/forgot-password" className="text-primary font-semibold hover:underline">Recupérala aquí</a>
+        <p className="text-center text-gray-600 dark:text-gray-400">
+          ¿Olvidaste tu contraseña?{' '}
+          <a href="/forgot-password" className="text-primary font-semibold hover:underline">
+            Recupérala aquí
+          </a>
         </p>
-        <p className="text-center text-gray-600">
-          ¿No tienes cuenta? <a href="/register" className="text-primary font-semibold hover:underline">Regístrate</a>
+        <p className="text-center text-gray-600 dark:text-gray-400">
+          ¿No tienes cuenta?{' '}
+          <a href="/register" className="text-primary font-semibold hover:underline">
+            Regístrate
+          </a>
         </p>
       </div>
     </form>

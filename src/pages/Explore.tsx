@@ -24,7 +24,6 @@ export const Explore: React.FC = () => {
         setLoading(false);
       }
     };
-
     fetchPublished();
   }, []);
 
@@ -39,8 +38,7 @@ export const Explore: React.FC = () => {
   });
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <div className="bg-gradient-to-r from-primary to-secondary text-white py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <h1 className="text-4xl font-bold mb-2 flex items-center gap-3">
@@ -51,9 +49,7 @@ export const Explore: React.FC = () => {
         </div>
       </div>
 
-      {/* Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        {/* Search */}
         <div className="mb-8 relative max-w-md">
           <Search className="absolute left-3 top-3 text-gray-400" size={20} />
           <input
@@ -61,13 +57,13 @@ export const Explore: React.FC = () => {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Buscar por título, tema o autor..."
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent bg-white"
+            className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 placeholder-gray-400"
           />
         </div>
 
         {loading ? (
           <div className="text-center py-12">
-            <p className="text-gray-500 text-lg">Cargando poesías...</p>
+            <p className="text-gray-500 dark:text-gray-400 text-lg">Cargando poesías...</p>
           </div>
         ) : error ? (
           <div className="text-center py-12">
@@ -75,23 +71,15 @@ export const Explore: React.FC = () => {
           </div>
         ) : poems.length === 0 ? (
           <div className="text-center py-12">
-            <Compass className="mx-auto text-gray-300 mb-4" size={48} />
-            <h3 className="text-2xl font-bold text-gray-800 mb-2">
-              Aún no hay poesías publicadas
-            </h3>
-            <p className="text-gray-600">
-              Sé el primero en compartir tu poesía con la comunidad
-            </p>
+            <Compass className="mx-auto text-gray-300 dark:text-gray-600 mb-4" size={48} />
+            <h3 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-2">Aún no hay poesías publicadas</h3>
+            <p className="text-gray-600 dark:text-gray-400">Sé el primero en compartir tu poesía con la comunidad</p>
           </div>
         ) : filteredPoems.length === 0 ? (
           <div className="text-center py-12">
-            <Search className="mx-auto text-gray-300 mb-4" size={48} />
-            <h3 className="text-2xl font-bold text-gray-800 mb-2">
-              Sin resultados
-            </h3>
-            <p className="text-gray-600">
-              No encontramos poesías que coincidan con "{search}"
-            </p>
+            <Search className="mx-auto text-gray-300 dark:text-gray-600 mb-4" size={48} />
+            <h3 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-2">Sin resultados</h3>
+            <p className="text-gray-600 dark:text-gray-400">No encontramos poesías que coincidan con "{search}"</p>
           </div>
         ) : (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
