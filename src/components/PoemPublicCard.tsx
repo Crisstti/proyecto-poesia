@@ -20,9 +20,9 @@ export const PoemPublicCard: React.FC<PoemPublicCardProps> = ({ poem }) => {
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-md hover:shadow-lg transition overflow-hidden">
-      <div className="bg-gradient-to-r from-primary/10 to-secondary/10 p-4 border-l-4 border-primary">
-        <h3 className="text-xl font-bold text-gray-800 mb-2">{poem.title}</h3>
+    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-lg transition overflow-hidden">
+      <div className="bg-gradient-to-r from-primary/10 to-secondary/10 dark:from-primary/20 dark:to-secondary/20 p-4 border-l-4 border-primary">
+        <h3 className="text-xl font-bold text-gray-800 dark:text-gray-100 mb-2">{poem.title}</h3>
         <div className="flex flex-wrap gap-2 mb-3">
           <span className="inline-block bg-primary/20 text-primary px-3 py-1 rounded-full text-xs font-semibold">
             {templateLabel[poem.templateType]}
@@ -31,20 +31,19 @@ export const PoemPublicCard: React.FC<PoemPublicCardProps> = ({ poem }) => {
             {poem.theme}
           </span>
         </div>
-        <div className="flex items-center gap-2 text-sm text-gray-600">
+        <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
           <UserIcon size={14} />
           <span>{poem.authorName || 'Anónimo'}</span>
         </div>
       </div>
 
       <div className="p-4">
-        <p className="text-gray-600 text-sm mb-4 line-clamp-3 font-serif">
+        <p className="text-gray-600 dark:text-gray-300 text-sm mb-4 line-clamp-3 font-serif">
           {truncateText(poem.content, 150)}
         </p>
-        <p className="text-xs text-gray-500 mb-4">
+        <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
           {formatDate(poem.createdAt)}
         </p>
-
         <button
           onClick={() => navigate(`/poem/${poem.$id}`)}
           className="w-full bg-accent/10 text-accent font-semibold py-2 rounded-lg hover:bg-accent/20 transition flex items-center justify-center gap-2"

@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { PoemsProvider } from './context/PoemsContext';
+import { ThemeProvider } from './context/ThemeContext';
 import { Navbar } from './components';
 import {
   Home,
@@ -17,16 +18,15 @@ import {
   Settings
 } from './pages';
 
-// Protected Route Component
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated, loading } = useAuth();
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-white dark:bg-gray-900">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-gray-600">Cargando...</p>
+          <p className="text-gray-600 dark:text-gray-300">Cargando...</p>
         </div>
       </div>
     );
@@ -39,105 +39,52 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
   return <>{children}</>;
 };
 
-// Main App Component
 const AppContent: React.FC = () => {
   const { loading } = useAuth();
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-white dark:bg-gray-900">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-gray-600">Cargando aplicación...</p>
+          <p className="text-gray-600 dark:text-gray-300">Cargando aplicación...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <>
+    <div className="min-h-screen bg-white dark:bg-gray-900 transition-colors duration-300">
       <Navbar />
       <Routes>
-        {/* Public Routes */}
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
-
-        {/* Protected Routes */}
-        <Route
-          path="/dashboard"
-          element={
-            <ProtectedRoute>
-              <Dashboard />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/editor"
-          element={
-            <ProtectedRoute>
-              <Editor />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/editor/:id"
-          element={
-            <ProtectedRoute>
-              <Editor />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/poem/:id"
-          element={
-            <ProtectedRoute>
-              <PoemDetail />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/explorar"
-          element={
-            <ProtectedRoute>
-              <Explore />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/profile"
-          element={
-            <ProtectedRoute>
-              <Profile />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/settings"
-          element={
-            <ProtectedRoute>
-              <Settings />
-            </ProtectedRoute>
-          }
-        />
-
-        {/* Catch all */}
+        <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+        <Route path="/editor" element={<ProtectedRoute><Editor /></ProtectedRoute>} />
+        <Route path="/editor/:id" element={<ProtectedRoute><Editor /></ProtectedRoute>} />
+        <Route path="/poem/:id" element={<ProtectedRoute><PoemDetail /></ProtectedRoute>} />
+        <Route path="/explorar" element={<ProtectedRoute><Explore /></ProtectedRoute>} />
+        <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+        <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-    </>
+    </div>
   );
 };
 
 export const App: React.FC = () => {
   return (
     <BrowserRouter>
-      <AuthProvider>
-        <PoemsProvider>
-          <AppContent />
-        </PoemsProvider>
-      </AuthProvider>
+      <ThemeProvider>
+        <AuthProvider>
+          <PoemsProvider>
+            <AppContent />
+          </PoemsProvider>
+        </AuthProvider>
+      </ThemeProvider>
     </BrowserRouter>
   );
 };

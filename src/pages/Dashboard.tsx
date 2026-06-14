@@ -32,8 +32,7 @@ export const Dashboard: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <div className="bg-gradient-to-r from-primary to-secondary text-white py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center">
@@ -52,54 +51,36 @@ export const Dashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        {/* Filter Tabs */}
         <div className="flex gap-4 mb-8">
-          <button
-            onClick={() => setFilter('all')}
-            className={`px-6 py-2 rounded-lg font-semibold transition ${
-              filter === 'all'
-                ? 'bg-primary text-white'
-                : 'bg-white text-gray-700 hover:bg-gray-100'
-            }`}
-          >
-            Todas ({poems.length})
-          </button>
-          <button
-            onClick={() => setFilter('published')}
-            className={`px-6 py-2 rounded-lg font-semibold transition ${
-              filter === 'published'
-                ? 'bg-primary text-white'
-                : 'bg-white text-gray-700 hover:bg-gray-100'
-            }`}
-          >
-            Publicadas ({poems.filter(p => p.published).length})
-          </button>
-          <button
-            onClick={() => setFilter('drafts')}
-            className={`px-6 py-2 rounded-lg font-semibold transition ${
-              filter === 'drafts'
-                ? 'bg-primary text-white'
-                : 'bg-white text-gray-700 hover:bg-gray-100'
-            }`}
-          >
-            Borradores ({poems.filter(p => !p.published).length})
-          </button>
+          {(['all', 'published', 'drafts'] as const).map(f => (
+            <button
+              key={f}
+              onClick={() => setFilter(f)}
+              className={`px-6 py-2 rounded-lg font-semibold transition ${
+                filter === f
+                  ? 'bg-primary text-white'
+                  : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700'
+              }`}
+            >
+              {f === 'all' && `Todas (${poems.length})`}
+              {f === 'published' && `Publicadas (${poems.filter(p => p.published).length})`}
+              {f === 'drafts' && `Borradores (${poems.filter(p => !p.published).length})`}
+            </button>
+          ))}
         </div>
 
-        {/* Poems Grid */}
         {loading ? (
           <div className="text-center py-12">
-            <p className="text-gray-500 text-lg">Cargando poesías...</p>
+            <p className="text-gray-500 dark:text-gray-400 text-lg">Cargando poesías...</p>
           </div>
         ) : filteredPoems.length === 0 ? (
           <div className="text-center py-12">
-            <BookOpen className="mx-auto text-gray-300 mb-4" size={48} />
-            <h3 className="text-2xl font-bold text-gray-800 mb-2">
+            <BookOpen className="mx-auto text-gray-300 dark:text-gray-600 mb-4" size={48} />
+            <h3 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-2">
               {filter === 'all' ? 'No tienes poesías aún' : `No tienes ${filter === 'published' ? 'poesías publicadas' : 'borradores'}`}
             </h3>
-            <p className="text-gray-600 mb-6">
+            <p className="text-gray-600 dark:text-gray-400 mb-6">
               Empieza a crear tu primera poesía ahora mismo
             </p>
             <button
