@@ -7,16 +7,12 @@ const client = new Client()
 export const account = new Account(client);
 export const databases = new Databases(client);
 
-export const appwrite = {
-  client,
-  account,
-  databases
-};
+export const appwrite = { client, account, databases };
 
-// Database and Collection IDs
 export const DB_ID = import.meta.env.VITE_APPWRITE_DATABASE_ID;
 export const POEMS_COLLECTION_ID = import.meta.env.VITE_APPWRITE_POEMS_COLLECTION_ID;
 export const USERS_COLLECTION_ID = import.meta.env.VITE_APPWRITE_USERS_COLLECTION_ID;
 export const LIKES_COLLECTION_ID = import.meta.env.VITE_APPWRITE_LIKES_COLLECTION_ID;
+export const COMMENTS_COLLECTION_ID = import.meta.env.VITE_APPWRITE_COMMENTS_COLLECTION_ID;
 
 export { ID, Query };

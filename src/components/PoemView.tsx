@@ -3,6 +3,7 @@ import { Poem } from '../types';
 import { formatDate } from '../utils';
 import { useAuth } from '../context/AuthContext';
 import { likesService } from '../services';
+import { CommentSection } from './CommentSection';
 import { X, Share2, Heart, Check } from 'lucide-react';
 
 interface PoemViewProps {
@@ -71,7 +72,11 @@ export const PoemView: React.FC<PoemViewProps> = ({ poem, onClose }) => {
     const url = `${window.location.origin}/poem/${poem.$id}`;
     try {
       if (navigator.share) {
-        await navigator.share({ title: poem.title, text: `Lee "${poem.title}" en Poesia`, url });
+        await navigator.share({
+          title: poem.title,
+          text: `Lee "${poem.title}" en Poesia`,
+          url
+        });
       } else {
         await navigator.clipboard.writeText(url);
         setCopied(true);
@@ -84,25 +89,34 @@ export const PoemView: React.FC<PoemViewProps> = ({ poem, onClose }) => {
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-2xl max-w-2xl w-full max-h-screen overflow-y-auto">
-        <div className="bg-gradient-to-r from-primary to-secondary text-white p-6 sticky top-0">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        {/* Header */}
+        <div className="bg-gradient-to-r from-primary to-secondary text-white p-6 sticky top-0 z-10">
           <div className="flex justify-between items-start">
             <div className="flex-1">
               <h2 className="text-3xl font-bold mb-2">{poem.title}</h2>
               <div className="flex flex-wrap gap-2">
-                <span className="bg-white/20 px-3 py-1 rounded-full text-sm">{templateLabel[poem.templateType]}</span>
-                <span className="bg-white/20 px-3 py-1 rounded-full text-sm">{poem.theme}</span>
+                <span className="bg-white/20 px-3 py-1 rounded-full text-sm">
+                  {templateLabel[poem.templateType]}
+                </span>
+                <span className="bg-white/20 px-3 py-1 rounded-full text-sm">
+                  {poem.theme}
+                </span>
               </div>
               {poem.authorName && (
                 <p className="text-sm text-white/80 mt-2">Por {poem.authorName}</p>
               )}
             </div>
-            <button onClick={onClose} className="text-white hover:bg-white/20 p-2 rounded-lg transition">
+            <button
+              onClick={onClose}
+              className="text-white hover:bg-white/20 p-2 rounded-lg transition"
+            >
               <X size={24} />
             </button>
           </div>
         </div>
 
+        {/* Content */}
         <div className="p-6 space-y-6">
           <div>
             <p className="text-gray-600 dark:text-gray-400 text-sm mb-4">
@@ -115,7 +129,8 @@ export const PoemView: React.FC<PoemViewProps> = ({ poem, onClose }) => {
             </div>
           </div>
 
-          <div className="flex gap-4 pt-4 border-t dark:border-gray-600">
+          {/* Acciones */}
+          <div className="flex gap-4 border-t dark:border-gray-600 pt-4">
             <button
               onClick={handleToggleLike}
               disabled={loadingLike}
@@ -141,6 +156,9 @@ export const PoemView: React.FC<PoemViewProps> = ({ poem, onClose }) => {
               {copied ? 'Enlace copiado' : 'Compartir'}
             </button>
           </div>
+
+          {/* Sección de comentarios */}
+          <CommentSection poemId={poem.$id} />
         </div>
       </div>
     </div>

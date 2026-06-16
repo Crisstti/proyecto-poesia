@@ -1,4 +1,3 @@
-// User type
 export interface User {
   $id: string;
   email: string;
@@ -7,7 +6,6 @@ export interface User {
   prefs?: Record<string, any>;
 }
 
-// Poem/Poetry type
 export interface Poem {
   $id: string;
   userId: string;
@@ -21,7 +19,15 @@ export interface Poem {
   published: boolean;
 }
 
-// Poetry template type
+export interface Comment {
+  $id: string;
+  poemId: string;
+  userId: string;
+  authorName: string;
+  content: string;
+  createdAt: string;
+}
+
 export interface PoetyTemplate {
   id: string;
   name: string;
@@ -32,7 +38,6 @@ export interface PoetyTemplate {
   icon: string;
 }
 
-// Auth context type
 export interface AuthContextType {
   user: User | null;
   loading: boolean;
@@ -45,7 +50,6 @@ export interface AuthContextType {
   updatePassword: (oldPassword: string, newPassword: string) => Promise<void>;
 }
 
-// Poems context type
 export interface PoemsContextType {
   poems: Poem[];
   loading: boolean;
