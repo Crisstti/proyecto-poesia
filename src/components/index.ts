@@ -7,3 +7,4 @@ export { PoemEditor } from './PoemEditor';
 export { PoemCard } from './PoemCard';
 export { PoemPublicCard } from './PoemPublicCard';
 export { PoemView } from './PoemView';
+export { CommentSection } from './CommentSection';
