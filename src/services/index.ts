@@ -107,16 +107,25 @@ export const poemsService = {
     return response.documents as Poem[];
   },
 
-  async getPublishedPoems(): Promise<Poem[]> {
+  async getPublishedPoems(
+    page: number = 1,
+    limit: number = 6
+  ): Promise<{ poems: Poem[]; total: number }> {
+    const offset = (page - 1) * limit;
     const response = await databases.listDocuments(
       DB_ID,
       POEMS_COLLECTION_ID,
       [
         Query.equal('published', true),
-        Query.orderDesc('updatedAt')
+        Query.orderDesc('updatedAt'),
+        Query.limit(limit),
+        Query.offset(offset)
       ]
     );
-    return response.documents as Poem[];
+    return {
+      poems: response.documents as Poem[],
+      total: response.total
+    };
   },
 
   async updatePoem(poemId: string, updates: Partial<Poem>): Promise<Poem> {
