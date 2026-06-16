@@ -15,7 +15,8 @@ import {
   PoemDetail,
   Explore,
   Profile,
-  Settings
+  Settings,
+  NotFound
 } from './pages';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -69,7 +70,7 @@ const AppContent: React.FC = () => {
         <Route path="/explorar" element={<ProtectedRoute><Explore /></ProtectedRoute>} />
         <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
         <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="*" element={<NotFound />} />
       </Routes>
     </div>
   );
