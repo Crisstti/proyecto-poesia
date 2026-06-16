@@ -128,6 +128,46 @@ export const poemsService = {
     };
   },
 
+  async searchPublishedPoems(
+    term: string
+  ): Promise<{ poems: Poem[]; total: number }> {
+    // Busca en paralelo por título, tema y autor
+    const [byTitle, byTheme, byAuthor] = await Promise.all([
+      databases.listDocuments(DB_ID, POEMS_COLLECTION_ID, [
+        Query.equal('published', true),
+        Query.search('title', term),
+        Query.limit(25)
+      ]),
+      databases.listDocuments(DB_ID, POEMS_COLLECTION_ID, [
+        Query.equal('published', true),
+        Query.search('theme', term),
+        Query.limit(25)
+      ]),
+      databases.listDocuments(DB_ID, POEMS_COLLECTION_ID, [
+        Query.equal('published', true),
+        Query.search('authorName', term),
+        Query.limit(25)
+      ])
+    ]);
+
+    // Unir resultados eliminando duplicados por $id
+    const seen = new Set<string>();
+    const merged: Poem[] = [];
+
+    for (const doc of [
+      ...byTitle.documents,
+      ...byTheme.documents,
+      ...byAuthor.documents
+    ]) {
+      if (!seen.has(doc.$id)) {
+        seen.add(doc.$id);
+        merged.push(doc as Poem);
+      }
+    }
+
+    return { poems: merged, total: merged.length };
+  },
+
   async updatePoem(poemId: string, updates: Partial<Poem>): Promise<Poem> {
     const response = await databases.updateDocument(
       DB_ID,
