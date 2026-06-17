@@ -1,14 +1,39 @@
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
-import { useNavigate } from 'react-router-dom';
-import { LogOut, User, Settings, Compass, Sun, Moon } from 'lucide-react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { LogOut, Settings, Compass, Sun, Moon } from 'lucide-react';
+import { Avatar } from './Avatar';
 
 export const Navbar: React.FC = () => {
   const { user, logout, isAuthenticated } = useAuth();
   const { isDark, toggleTheme } = useTheme();
   const navigate = useNavigate();
+  const location = useLocation();
   const [showMenu, setShowMenu] = React.useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Cerrar menú al cambiar de página
+  useEffect(() => {
+    setShowMenu(false);
+  }, [location.pathname]);
+
+  // Cerrar menú al hacer clic fuera
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setShowMenu(false);
+      }
+    };
+
+    if (showMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showMenu]);
 
   const handleLogout = async () => {
     try {
@@ -24,7 +49,10 @@ export const Navbar: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           <div className="flex items-center gap-6">
-            <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate('/')}>
+            <div
+              className="flex items-center gap-3 cursor-pointer"
+              onClick={() => navigate('/')}
+            >
               <div className="text-2xl">✍️</div>
               <h1 className="text-2xl font-bold">Poesia</h1>
             </div>
@@ -50,33 +78,44 @@ export const Navbar: React.FC = () => {
             </button>
 
             {isAuthenticated ? (
-              <div className="relative">
+              <div className="relative" ref={menuRef}>
                 <button
-                  onClick={() => setShowMenu(!showMenu)}
-                  className="flex items-center gap-2 hover:bg-white/20 px-4 py-2 rounded-lg transition"
+                  onClick={() => setShowMenu(prev => !prev)}
+                  className="flex items-center gap-2 hover:bg-white/20 px-3 py-2 rounded-lg transition"
                 >
-                  <User size={20} />
-                  <span>{user?.name}</span>
+                  {user && <Avatar name={user.name} size="sm" />}
+                  <span className="hidden sm:block">{user?.name}</span>
                 </button>
 
                 {showMenu && (
-                  <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 rounded-lg shadow-xl z-50">
+                  <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 rounded-lg shadow-xl z-50">
+                    {/* Header del menú con avatar */}
+                    <div className="px-4 py-3 border-b dark:border-gray-600 flex items-center gap-3">
+                      {user && <Avatar name={user.name} size="md" />}
+                      <div className="overflow-hidden">
+                        <p className="font-semibold text-sm truncate">{user?.name}</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                          {user?.email}
+                        </p>
+                      </div>
+                    </div>
+
                     <button
-                      onClick={() => { navigate('/explorar'); setShowMenu(false); }}
+                      onClick={() => navigate('/explorar')}
                       className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 sm:hidden"
                     >
                       <Compass size={18} />
                       Explorar
                     </button>
                     <button
-                      onClick={() => { navigate('/profile'); setShowMenu(false); }}
+                      onClick={() => navigate('/profile')}
                       className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
                     >
-                      <User size={18} />
+                      {user && <Avatar name={user.name} size="sm" />}
                       Mi Perfil
                     </button>
                     <button
-                      onClick={() => { navigate('/settings'); setShowMenu(false); }}
+                      onClick={() => navigate('/settings')}
                       className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
                     >
                       <Settings size={18} />

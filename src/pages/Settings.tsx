@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import { validatePassword } from '../utils';
 import { translateAppwriteError } from '../utils/errorMessages';
-import { Settings as SettingsIcon, AlertCircle, CheckCircle, Lock } from 'lucide-react';
+import { Settings as SettingsIcon, AlertCircle, CheckCircle, Lock, ArrowLeft } from 'lucide-react';
 
 export const Settings: React.FC = () => {
   const { updatePassword } = useAuth();
+  const navigate = useNavigate();
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -37,14 +39,28 @@ export const Settings: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-12 px-4">
       <div className="max-w-md mx-auto bg-white dark:bg-gray-800 rounded-lg shadow-lg p-8">
+
+        {/* Botón volver */}
+        <button
+          onClick={() => navigate(-1)}
+          className="flex items-center gap-2 text-gray-500 dark:text-gray-400 hover:text-primary dark:hover:text-primary transition mb-6"
+        >
+          <ArrowLeft size={18} />
+          Volver
+        </button>
+
         <div className="flex items-center gap-3 mb-6">
           <div className="bg-primary/10 p-3 rounded-full">
             <SettingsIcon className="text-primary" size={28} />
           </div>
-          <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-100">Configuración</h1>
+          <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-100">
+            Configuración
+          </h1>
         </div>
 
-        <h2 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-4">Cambiar Contraseña</h2>
+        <h2 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-4">
+          Cambiar Contraseña
+        </h2>
 
         {error && (
           <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg p-4 mb-4 flex gap-3">
@@ -55,7 +71,9 @@ export const Settings: React.FC = () => {
         {success && (
           <div className="bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 rounded-lg p-4 mb-4 flex gap-3">
             <CheckCircle className="text-green-600 flex-shrink-0" size={20} />
-            <p className="text-green-700 dark:text-green-400">Contraseña actualizada con éxito.</p>
+            <p className="text-green-700 dark:text-green-400">
+              Contraseña actualizada con éxito.
+            </p>
           </div>
         )}
 
@@ -66,7 +84,9 @@ export const Settings: React.FC = () => {
             { label: 'Confirmar Nueva Contraseña', value: confirmPassword, setter: setConfirmPassword, placeholder: '' }
           ].map(({ label, value, setter, placeholder }) => (
             <div key={label}>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{label}</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                {label}
+              </label>
               <div className="relative">
                 <Lock className="absolute left-3 top-3 text-gray-400" size={20} />
                 <input

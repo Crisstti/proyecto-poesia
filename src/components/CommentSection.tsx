@@ -3,7 +3,8 @@ import { useAuth } from '../context/AuthContext';
 import { commentsService } from '../services';
 import { Comment } from '../types';
 import { formatDate } from '../utils';
-import { Send, Trash2, MessageCircle, User as UserIcon } from 'lucide-react';
+import { Avatar } from './Avatar';
+import { Send, Trash2, MessageCircle } from 'lucide-react';
 
 interface CommentSectionProps {
   poemId: string;
@@ -92,15 +93,15 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ poemId }) => {
             >
               <div className="flex justify-between items-start gap-2">
                 <div className="flex items-center gap-2 mb-2">
-                  <div className="bg-primary/20 p-1.5 rounded-full">
-                    <UserIcon size={14} className="text-primary" />
+                  <Avatar name={comment.authorName} size="sm" />
+                  <div>
+                    <span className="font-semibold text-sm text-gray-800 dark:text-gray-100">
+                      {comment.authorName}
+                    </span>
+                    <p className="text-xs text-gray-400 dark:text-gray-500">
+                      {formatDate(comment.createdAt)}
+                    </p>
                   </div>
-                  <span className="font-semibold text-sm text-gray-800 dark:text-gray-100">
-                    {comment.authorName}
-                  </span>
-                  <span className="text-xs text-gray-400 dark:text-gray-500">
-                    {formatDate(comment.createdAt)}
-                  </span>
                 </div>
                 {user && user.$id === comment.userId && (
                   <button
@@ -112,7 +113,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ poemId }) => {
                   </button>
                 )}
               </div>
-              <p className="text-gray-700 dark:text-gray-300 text-sm leading-relaxed">
+              <p className="text-gray-700 dark:text-gray-300 text-sm leading-relaxed ml-10">
                 {comment.content}
               </p>
             </div>
@@ -126,15 +127,18 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ poemId }) => {
           {error && (
             <p className="text-red-600 dark:text-red-400 text-sm">{error}</p>
           )}
-          <textarea
-            value={newComment}
-            onChange={(e) => setNewComment(e.target.value)}
-            placeholder="Escribe un comentario..."
-            rows={3}
-            maxLength={1000}
-            className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 resize-none"
-            disabled={submitting}
-          />
+          <div className="flex gap-3">
+            <Avatar name={user.name} size="sm" />
+            <textarea
+              value={newComment}
+              onChange={(e) => setNewComment(e.target.value)}
+              placeholder="Escribe un comentario..."
+              rows={3}
+              maxLength={1000}
+              className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 resize-none"
+              disabled={submitting}
+            />
+          </div>
           <div className="flex justify-between items-center">
             <span className="text-xs text-gray-400 dark:text-gray-500">
               {newComment.length}/1000
