@@ -9,3 +9,4 @@ export { PoemPublicCard } from './PoemPublicCard';
 export { PoemView } from './PoemView';
 export { CommentSection } from './CommentSection';
 export { Avatar } from './Avatar';
+export { FavoriteButton } from './FavoriteButton';

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Poem } from '../types';
 import { formatDate, truncateText } from '../utils';
 import { Eye, User as UserIcon } from 'lucide-react';
+import { FavoriteButton } from './FavoriteButton';
 
 interface PoemPublicCardProps {
   poem: Poem;
@@ -16,13 +17,18 @@ export const PoemPublicCard: React.FC<PoemPublicCardProps> = ({ poem }) => {
     'sonnet': 'Soneto',
     'free-verse': 'Verso Libre',
     'acrostic': 'Acróstico',
-    'reflection': 'Reflexión'
+    'reflection': 'Reflexión Poética'
   };
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-lg transition overflow-hidden">
       <div className="bg-gradient-to-r from-primary/10 to-secondary/10 dark:from-primary/20 dark:to-secondary/20 p-4 border-l-4 border-primary">
-        <h3 className="text-xl font-bold text-gray-800 dark:text-gray-100 mb-2">{poem.title}</h3>
+        <div className="flex justify-between items-start">
+          <h3 className="text-xl font-bold text-gray-800 dark:text-gray-100 mb-2 flex-1">
+            {poem.title}
+          </h3>
+          <FavoriteButton poemId={poem.$id} size="sm" />
+        </div>
         <div className="flex flex-wrap gap-2 mb-3">
           <span className="inline-block bg-primary/20 text-primary px-3 py-1 rounded-full text-xs font-semibold">
             {templateLabel[poem.templateType]}

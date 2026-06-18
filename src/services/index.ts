@@ -7,6 +7,7 @@ import {
   USERS_COLLECTION_ID,
   LIKES_COLLECTION_ID,
   COMMENTS_COLLECTION_ID,
+  FAVORITES_COLLECTION_ID,
   ID,
   Query
 } from './appwrite';
@@ -131,7 +132,6 @@ export const poemsService = {
   async searchPublishedPoems(
     term: string
   ): Promise<{ poems: Poem[]; total: number }> {
-    // Busca en paralelo por título, tema y autor
     const [byTitle, byTheme, byAuthor] = await Promise.all([
       databases.listDocuments(DB_ID, POEMS_COLLECTION_ID, [
         Query.equal('published', true),
@@ -150,7 +150,6 @@ export const poemsService = {
       ])
     ]);
 
-    // Unir resultados eliminando duplicados por $id
     const seen = new Set<string>();
     const merged: Poem[] = [];
 
@@ -166,6 +165,16 @@ export const poemsService = {
     }
 
     return { poems: merged, total: merged.length };
+  },
+
+  async getPoemsByIds(poemIds: string[]): Promise<Poem[]> {
+    if (poemIds.length === 0) return [];
+    const response = await databases.listDocuments(
+      DB_ID,
+      POEMS_COLLECTION_ID,
+      [Query.equal('$id', poemIds)]
+    );
+    return response.documents as Poem[];
   },
 
   async updatePoem(poemId: string, updates: Partial<Poem>): Promise<Poem> {
@@ -186,8 +195,9 @@ export const poemsService = {
     try {
       await likesService.deleteLikesForPoem(poemId);
       await commentsService.deleteCommentsForPoem(poemId);
+      await favoritesService.deleteFavoritesForPoem(poemId);
     } catch (error) {
-      console.error('Error cleaning up likes/comments for poem:', error);
+      console.error('Error cleaning up data for poem:', error);
     }
   },
 
@@ -249,6 +259,67 @@ export const likesService = {
     await Promise.all(
       response.documents.map(doc =>
         databases.deleteDocument(DB_ID, LIKES_COLLECTION_ID, doc.$id)
+      )
+    );
+  }
+};
+
+// Favorites Services
+export const favoritesService = {
+  async getUserFavorites(userId: string): Promise<string[]> {
+    const response = await databases.listDocuments(
+      DB_ID,
+      FAVORITES_COLLECTION_ID,
+      [Query.equal('userId', userId)]
+    );
+    return response.documents.map(doc => doc.poemId);
+  },
+
+  async getUserFavoriteDocId(
+    poemId: string,
+    userId: string
+  ): Promise<string | null> {
+    const response = await databases.listDocuments(
+      DB_ID,
+      FAVORITES_COLLECTION_ID,
+      [
+        Query.equal('poemId', poemId),
+        Query.equal('userId', userId)
+      ]
+    );
+    return response.documents.length > 0 ? response.documents[0].$id : null;
+  },
+
+  async addFavorite(poemId: string, userId: string): Promise<void> {
+    await databases.createDocument(
+      DB_ID,
+      FAVORITES_COLLECTION_ID,
+      ID.unique(),
+      { poemId, userId },
+      [
+        `read("user:${userId}")`,
+        `delete("user:${userId}")`
+      ]
+    );
+  },
+
+  async removeFavorite(favoriteDocId: string): Promise<void> {
+    await databases.deleteDocument(
+      DB_ID,
+      FAVORITES_COLLECTION_ID,
+      favoriteDocId
+    );
+  },
+
+  async deleteFavoritesForPoem(poemId: string): Promise<void> {
+    const response = await databases.listDocuments(
+      DB_ID,
+      FAVORITES_COLLECTION_ID,
+      [Query.equal('poemId', poemId)]
+    );
+    await Promise.all(
+      response.documents.map(doc =>
+        databases.deleteDocument(DB_ID, FAVORITES_COLLECTION_ID, doc.$id)
       )
     );
   }
