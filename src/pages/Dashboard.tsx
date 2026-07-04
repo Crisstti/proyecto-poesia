@@ -2,13 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { usePoems } from '../context/PoemsContext';
 import { useAuth } from '../context/AuthContext';
-import { favoritesService, poemsService } from '../services';
+import { favoritesService, poemsService, friendshipsService, messagesService } from '../services';
 import { PoemCard } from '../components/PoemCard';
 import { PoemPublicCard } from '../components/PoemPublicCard';
 import { Poem } from '../types';
-import { Plus, BookOpen, Bookmark } from 'lucide-react';
+import { Plus, BookOpen, Bookmark, Users, MessageCircle } from 'lucide-react';
 
-type Tab = 'all' | 'published' | 'drafts' | 'favorites';
+type Tab = 'all' | 'favorites' | 'contacts' | 'messages';
 
 export const Dashboard: React.FC = () => {
   const navigate = useNavigate();
@@ -18,22 +18,46 @@ export const Dashboard: React.FC = () => {
   const [filter, setFilter] = useState<'all' | 'published' | 'drafts'>('all');
   const [favorites, setFavorites] = useState<Poem[]>([]);
   const [loadingFavorites, setLoadingFavorites] = useState(false);
+  const [pendingCount, setPendingCount] = useState(0);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
-    if (tab === 'favorites' && user) {
-      loadFavorites();
+    if (user) {
+      loadPendingCount();
+      loadUnreadCount();
     }
+  }, [user]);
+
+  useEffect(() => {
+    if (tab === 'favorites' && user) loadFavorites();
   }, [tab, user]);
+
+  const loadPendingCount = async () => {
+    if (!user) return;
+    try {
+      const pending = await friendshipsService.getPendingReceived(user.$id);
+      setPendingCount(pending.length);
+    } catch (err) {
+      console.error('Error loading pending count:', err);
+    }
+  };
+  
+  const loadUnreadCount = async () => {
+    if (!user) return;
+    try {
+      const count = await messagesService.getUnreadCount(user.$id);
+      setUnreadCount(count);
+    } catch (err) {
+      console.error('Error loading unread count:', err);
+    }
+  };
 
   const loadFavorites = async () => {
     if (!user) return;
     setLoadingFavorites(true);
     try {
       const poemIds = await favoritesService.getUserFavorites(user.$id);
-      if (poemIds.length === 0) {
-        setFavorites([]);
-        return;
-      }
+      if (poemIds.length === 0) { setFavorites([]); return; }
       const favPoems = await poemsService.getPoemsByIds(poemIds);
       setFavorites(favPoems);
     } catch (err) {
@@ -50,29 +74,22 @@ export const Dashboard: React.FC = () => {
   });
 
   const handleDelete = async (id: string) => {
-    try {
-      await deletePoem(id);
-    } catch (error) {
-      console.error('Error deleting poem:', error);
-    }
+    try { await deletePoem(id); } catch (error) { console.error(error); }
   };
 
   const handleTogglePublish = async (id: string, currentStatus: boolean) => {
-    try {
-      await updatePoem(id, { published: !currentStatus });
-    } catch (error) {
-      console.error('Error toggling publish status:', error);
-    }
+    try { await updatePoem(id, { published: !currentStatus }); } catch (error) { console.error(error); }
   };
 
   const tabs = [
     { key: 'all' as Tab, label: 'Mis Poesías', icon: BookOpen },
-    { key: 'favorites' as Tab, label: 'Favoritos', icon: Bookmark }
+    { key: 'favorites' as Tab, label: 'Favoritos', icon: Bookmark },
+    { key: 'contacts' as Tab, label: 'Contactos', icon: Users, badge: pendingCount },
+    { key: 'messages' as Tab, label: 'Mensajes', icon: MessageCircle, badge: unreadCount }
   ];
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      {/* Header */}
       <div className="bg-gradient-to-r from-primary to-secondary text-white py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center">
@@ -91,15 +108,17 @@ export const Dashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-
-        {/* Tabs principales */}
+        {/* Tabs */}
         <div className="flex gap-2 mb-6 border-b dark:border-gray-700">
-          {tabs.map(({ key, label, icon: Icon }) => (
+          {tabs.map(({ key, label, icon: Icon, badge }) => (
             <button
               key={key}
-              onClick={() => setTab(key)}
+              onClick={() => {
+  		if (key === 'contacts') navigate('/contacts');
+  		else if (key === 'messages') navigate('/messages');
+  		else setTab(key);
+	      }}
               className={`flex items-center gap-2 px-6 py-3 font-semibold transition border-b-2 -mb-px ${
                 tab === key
                   ? 'border-primary text-primary'
@@ -108,7 +127,12 @@ export const Dashboard: React.FC = () => {
             >
               <Icon size={18} />
               {label}
-              {key === 'favorites' && favorites.length > 0 && (
+              {badge !== undefined && badge > 0 && (
+                <span className="bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-xs font-bold px-2 py-0.5 rounded-full">
+                  {badge}
+                </span>
+              )}
+              {key === 'favorites' && favorites.length > 0 && tab !== 'contacts' && (
                 <span className="bg-primary/10 text-primary text-xs font-bold px-2 py-0.5 rounded-full">
                   {favorites.length}
                 </span>
@@ -120,7 +144,6 @@ export const Dashboard: React.FC = () => {
         {/* Tab: Mis Poesías */}
         {tab === 'all' && (
           <>
-            {/* Filtros */}
             <div className="flex gap-4 mb-8">
               {(['all', 'published', 'drafts'] as const).map(f => (
                 <button
@@ -141,17 +164,13 @@ export const Dashboard: React.FC = () => {
 
             {loading ? (
               <div className="text-center py-12">
-                <p className="text-gray-500 dark:text-gray-400 text-lg">
-                  Cargando poesías...
-                </p>
+                <p className="text-gray-500 dark:text-gray-400 text-lg">Cargando poesías...</p>
               </div>
             ) : filteredPoems.length === 0 ? (
               <div className="text-center py-12">
                 <BookOpen className="mx-auto text-gray-300 dark:text-gray-600 mb-4" size={48} />
                 <h3 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-2">
-                  {filter === 'all'
-                    ? 'No tienes poesías aún'
-                    : `No tienes ${filter === 'published' ? 'poesías publicadas' : 'borradores'}`}
+                  {filter === 'all' ? 'No tienes poesías aún' : `No tienes ${filter === 'published' ? 'poesías publicadas' : 'borradores'}`}
                 </h3>
                 <p className="text-gray-600 dark:text-gray-400 mb-6">
                   Empieza a crear tu primera poesía ahora mismo
@@ -185,9 +204,7 @@ export const Dashboard: React.FC = () => {
           <>
             {loadingFavorites ? (
               <div className="text-center py-12">
-                <p className="text-gray-500 dark:text-gray-400 text-lg">
-                  Cargando favoritos...
-                </p>
+                <p className="text-gray-500 dark:text-gray-400 text-lg">Cargando favoritos...</p>
               </div>
             ) : favorites.length === 0 ? (
               <div className="text-center py-12">

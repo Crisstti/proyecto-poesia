@@ -37,10 +37,14 @@ export const PoemPublicCard: React.FC<PoemPublicCardProps> = ({ poem }) => {
             {poem.theme}
           </span>
         </div>
-        <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
+        {/* Nombre del autor clickeable */}
+        <button
+          onClick={() => poem.userId && navigate(`/user/${poem.userId}`)}
+          className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300 hover:text-primary dark:hover:text-primary transition"
+        >
           <UserIcon size={14} />
-          <span>{poem.authorName || 'Anónimo'}</span>
-        </div>
+          <span className="hover:underline">{poem.authorName || 'Anónimo'}</span>
+        </button>
       </div>
 
       <div className="p-4">

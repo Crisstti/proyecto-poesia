@@ -1,4 +1,4 @@
-import { User, Poem, Comment } from '../types';
+import { User, Poem, Comment, Friendship, UserProfile, Message } from '../types';
 import {
   account,
   databases,
@@ -8,8 +8,12 @@ import {
   LIKES_COLLECTION_ID,
   COMMENTS_COLLECTION_ID,
   FAVORITES_COLLECTION_ID,
+  FRIENDSHIPS_COLLECTION_ID,
+  MESSAGES_COLLECTION_ID,
   ID,
-  Query
+  Query,
+  Permission,
+  Role
 } from './appwrite';
 
 // Authentication Services
@@ -83,8 +87,8 @@ export const poemsService = {
         updatedAt: new Date().toISOString()
       },
       [
-        `read("user:${user.$id}")`,
-        `write("user:${user.$id}")`
+        Permission.read(Role.user(user.$id)),
+        Permission.write(Role.user(user.$id))
       ]
     );
     return response as Poem;
@@ -177,6 +181,19 @@ export const poemsService = {
     return response.documents as Poem[];
   },
 
+  async getPublishedPoemsByUser(userId: string): Promise<Poem[]> {
+    const response = await databases.listDocuments(
+      DB_ID,
+      POEMS_COLLECTION_ID,
+      [
+        Query.equal('userId', userId),
+        Query.equal('published', true),
+        Query.orderDesc('createdAt')
+      ]
+    );
+    return response.documents as Poem[];
+  },
+
   async updatePoem(poemId: string, updates: Partial<Poem>): Promise<Poem> {
     const response = await databases.updateDocument(
       DB_ID,
@@ -240,8 +257,8 @@ export const likesService = {
       ID.unique(),
       { poemId, userId },
       [
-        `read("user:${userId}")`,
-        `delete("user:${userId}")`
+        Permission.read(Role.user(userId)),
+        Permission.delete(Role.user(userId))
       ]
     );
   },
@@ -297,8 +314,8 @@ export const favoritesService = {
       ID.unique(),
       { poemId, userId },
       [
-        `read("user:${userId}")`,
-        `delete("user:${userId}")`
+        Permission.read(Role.user(userId)),
+        Permission.delete(Role.user(userId))
       ]
     );
   },
@@ -321,6 +338,121 @@ export const favoritesService = {
       response.documents.map(doc =>
         databases.deleteDocument(DB_ID, FAVORITES_COLLECTION_ID, doc.$id)
       )
+    );
+  }
+};
+
+// Friendships Services
+export const friendshipsService = {
+  async sendRequest(senderId: string, receiverId: string): Promise<Friendship> {
+    const response = await databases.createDocument(
+      DB_ID,
+      FRIENDSHIPS_COLLECTION_ID,
+      ID.unique(),
+      { senderId, receiverId, status: 'pending' }
+    );
+    return response as Friendship;
+  },
+
+  async getFriendshipBetween(
+    userId1: string,
+    userId2: string
+  ): Promise<Friendship | null> {
+    const [sent, received] = await Promise.all([
+      databases.listDocuments(DB_ID, FRIENDSHIPS_COLLECTION_ID, [
+        Query.equal('senderId', userId1),
+        Query.equal('receiverId', userId2)
+      ]),
+      databases.listDocuments(DB_ID, FRIENDSHIPS_COLLECTION_ID, [
+        Query.equal('senderId', userId2),
+        Query.equal('receiverId', userId1)
+      ])
+    ]);
+
+    if (sent.documents.length > 0) return sent.documents[0] as Friendship;
+    if (received.documents.length > 0) return received.documents[0] as Friendship;
+    return null;
+  },
+
+  async acceptRequest(friendshipId: string): Promise<void> {
+    await databases.updateDocument(
+      DB_ID,
+      FRIENDSHIPS_COLLECTION_ID,
+      friendshipId,
+      { status: 'accepted' }
+    );
+  },
+
+  async rejectRequest(friendshipId: string): Promise<void> {
+    await databases.updateDocument(
+      DB_ID,
+      FRIENDSHIPS_COLLECTION_ID,
+      friendshipId,
+      { status: 'rejected' }
+    );
+  },
+
+  async cancelRequest(friendshipId: string): Promise<void> {
+    await databases.deleteDocument(
+      DB_ID,
+      FRIENDSHIPS_COLLECTION_ID,
+      friendshipId
+    );
+  },
+
+  async getFriends(userId: string): Promise<Friendship[]> {
+    const [sent, received] = await Promise.all([
+      databases.listDocuments(DB_ID, FRIENDSHIPS_COLLECTION_ID, [
+        Query.equal('senderId', userId),
+        Query.equal('status', 'accepted')
+      ]),
+      databases.listDocuments(DB_ID, FRIENDSHIPS_COLLECTION_ID, [
+        Query.equal('receiverId', userId),
+        Query.equal('status', 'accepted')
+      ])
+    ]);
+
+    return [
+      ...sent.documents,
+      ...received.documents
+    ] as Friendship[];
+  },
+
+  async getPendingReceived(userId: string): Promise<Friendship[]> {
+    const response = await databases.listDocuments(
+      DB_ID,
+      FRIENDSHIPS_COLLECTION_ID,
+      [
+        Query.equal('receiverId', userId),
+        Query.equal('status', 'pending')
+      ]
+    );
+    return response.documents as Friendship[];
+  },
+
+  async getPendingSent(userId: string): Promise<Friendship[]> {
+    const response = await databases.listDocuments(
+      DB_ID,
+      FRIENDSHIPS_COLLECTION_ID,
+      [
+        Query.equal('senderId', userId),
+        Query.equal('status', 'pending')
+      ]
+    );
+    return response.documents as Friendship[];
+  },
+
+  getFriendId(friendship: Friendship, currentUserId: string): string {
+    return friendship.senderId === currentUserId
+      ? friendship.receiverId
+      : friendship.senderId;
+  },
+
+  async removeFriend(friendshipId: string): Promise<void> {
+    await databases.deleteDocument(
+      DB_ID,
+      FRIENDSHIPS_COLLECTION_ID,
+      friendshipId
     );
   }
 };
@@ -357,8 +489,8 @@ export const commentsService = {
         createdAt: new Date().toISOString()
       },
       [
-        `read("any")`,
-        `delete("user:${userId}")`
+        Permission.read(Role.any()),
+        Permission.delete(Role.user(userId))
       ]
     );
     return response as Comment;
@@ -382,6 +514,91 @@ export const commentsService = {
   }
 };
 
+// Messages Services
+export const messagesService = {
+  async getConversation(userId: string, otherUserId: string): Promise<Message[]> {
+    const [sent, received] = await Promise.all([
+      databases.listDocuments(DB_ID, MESSAGES_COLLECTION_ID, [
+        Query.equal('senderId', userId),
+        Query.equal('receiverId', otherUserId)
+      ]),
+      databases.listDocuments(DB_ID, MESSAGES_COLLECTION_ID, [
+        Query.equal('senderId', otherUserId),
+        Query.equal('receiverId', userId)
+      ])
+    ]);
+
+    const all = [...sent.documents, ...received.documents] as Message[];
+    return all.sort(
+      (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+    );
+  },
+
+  async sendMessage(
+    senderId: string,
+    receiverId: string,
+    content: string
+  ): Promise<Message> {
+    const response = await databases.createDocument(
+      DB_ID,
+      MESSAGES_COLLECTION_ID,
+      ID.unique(),
+      {
+        senderId,
+        receiverId,
+        content,
+        createdAt: new Date().toISOString(),
+        read: false
+      }
+    );
+    return response as Message;
+  },
+
+  async markAsRead(messageId: string): Promise<void> {
+    await databases.updateDocument(
+      DB_ID,
+      MESSAGES_COLLECTION_ID,
+      messageId,
+      { read: true }
+    );
+  },
+
+  async getAllUserMessages(userId: string): Promise<Message[]> {
+    const [sent, received] = await Promise.all([
+      databases.listDocuments(DB_ID, MESSAGES_COLLECTION_ID, [
+        Query.equal('senderId', userId),
+        Query.orderDesc('createdAt'),
+        Query.limit(100)
+      ]),
+      databases.listDocuments(DB_ID, MESSAGES_COLLECTION_ID, [
+        Query.equal('receiverId', userId),
+        Query.orderDesc('createdAt'),
+        Query.limit(100)
+      ])
+    ]);
+
+    return [...sent.documents, ...received.documents] as Message[];
+  },
+
+  getConversationPartnerId(message: Message, currentUserId: string): string {
+    return message.senderId === currentUserId
+      ? message.receiverId
+      : message.senderId;
+  },
+
+  async getUnreadCount(userId: string): Promise<number> {
+    const response = await databases.listDocuments(
+      DB_ID,
+      MESSAGES_COLLECTION_ID,
+      [
+        Query.equal('receiverId', userId),
+        Query.equal('read', false)
+      ]
+    );
+    return response.total;
+  }
+};
+
 // User Profile Services
 export const userService = {
   async createUserProfile(userId: string, email: string, name: string) {
@@ -396,24 +613,34 @@ export const userService = {
         createdAt: new Date().toISOString()
       },
       [
-        `read("user:${userId}")`,
-        `write("user:${userId}")`
+        Permission.read(Role.user(userId)),
+        Permission.write(Role.user(userId))
       ]
     );
     return response;
   },
 
-  async getUserProfile(userId: string) {
+  async getUserProfile(userId: string): Promise<UserProfile | null> {
     try {
       const response = await databases.getDocument(
         DB_ID,
         USERS_COLLECTION_ID,
         userId
       );
-      return response;
+      return response as UserProfile;
     } catch {
       return null;
     }
+  },
+
+  async searchUsers(term: string, currentUserId: string): Promise<UserProfile[]> {
+    const response = await databases.listDocuments(
+      DB_ID,
+      USERS_COLLECTION_ID,
+      [Query.search('name', term), Query.limit(10)]
+    );
+    return response.documents
+      .filter(doc => doc.$id !== currentUserId) as UserProfile[];
   },
 
   async updateUserProfile(userId: string, updates: any) {

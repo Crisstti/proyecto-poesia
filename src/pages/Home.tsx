@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { BookOpen, Zap, Users, ArrowRight } from 'lucide-react';
+import { BookOpen, Shield, Users, Heart, MessageCircle, Bookmark, ArrowRight } from 'lucide-react';
 
 export const Home: React.FC = () => {
   const navigate = useNavigate();
@@ -68,25 +68,56 @@ export const Home: React.FC = () => {
               <h3 className="text-xl font-bold text-white mb-3">Plantillas Visuales</h3>
               <p className="text-gray-300 dark:text-gray-400">
                 Elige entre Haiku, Soneto, Verso Libre, Acróstico y más.
-                Cada plantilla te guía en la estructura perfecta.
+                Cada plantilla te guía en la estructura perfecta para
+                expresar tus ideas.
               </p>
             </div>
 
             <div className="bg-white/5 dark:bg-white/5 border border-white/10 rounded-lg p-8 hover:bg-white/10 transition">
-              <Zap className="text-secondary mb-4" size={32} />
+              <Shield className="text-secondary mb-4" size={32} />
               <h3 className="text-xl font-bold text-white mb-3">Autenticación Segura</h3>
               <p className="text-gray-300 dark:text-gray-400">
-                Registrate, inicia sesión y recupera tu contraseña de forma segura
-                con Appwrite como backend.
+                Regístrate, inicia sesión y recupera tu contraseña de
+                forma segura. Tu cuenta y tus poesías siempre protegidas.
               </p>
             </div>
 
             <div className="bg-white/5 dark:bg-white/5 border border-white/10 rounded-lg p-8 hover:bg-white/10 transition">
               <Users className="text-accent mb-4" size={32} />
-              <h3 className="text-xl font-bold text-white mb-3">Comunidad</h3>
+              <h3 className="text-xl font-bold text-white mb-3">Comunidad de Poetas</h3>
               <p className="text-gray-300 dark:text-gray-400">
-                Publica tus poesías, comparte con otros poetas y mantén
-                tu biblioteca personal en la nube.
+                Conecta con otros poetas, agrega amigos, explora sus
+                publicaciones y construye tu red creativa.
+              </p>
+            </div>
+
+            <div className="bg-white/5 dark:bg-white/5 border border-white/10 rounded-lg p-8 hover:bg-white/10 transition">
+              <Heart className="text-pink-400 mb-4" size={32} />
+              <h3 className="text-xl font-bold text-white mb-3">Likes y Favoritos</h3>
+              <p className="text-gray-300 dark:text-gray-400">
+                Dale "Me encanta" a las poesías que más te inspiren y
+                guárdalas en tu colección personal de favoritos para
+                volver a ellas cuando quieras.
+              </p>
+            </div>
+
+            <div className="bg-white/5 dark:bg-white/5 border border-white/10 rounded-lg p-8 hover:bg-white/10 transition">
+              <MessageCircle className="text-green-400 mb-4" size={32} />
+              <h3 className="text-xl font-bold text-white mb-3">Mensajes en Tiempo Real</h3>
+              <p className="text-gray-300 dark:text-gray-400">
+                Conversa en tiempo real con tus amigos poetas. Comparte
+                ideas, inspiración y retroalimentación de manera privada
+                e instantánea.
+              </p>
+            </div>
+
+            <div className="bg-white/5 dark:bg-white/5 border border-white/10 rounded-lg p-8 hover:bg-white/10 transition">
+              <Bookmark className="text-yellow-400 mb-4" size={32} />
+              <h3 className="text-xl font-bold text-white mb-3">Tu Biblioteca Personal</h3>
+              <p className="text-gray-300 dark:text-gray-400">
+                Gestiona tus borradores, publica cuando estés listo y
+                organiza toda tu obra en un solo lugar accesible desde
+                cualquier dispositivo.
               </p>
             </div>
           </div>
@@ -108,7 +139,9 @@ export const Home: React.FC = () => {
 
       {/* Footer */}
       <footer className="border-t border-white/10 py-8 text-center text-gray-400 dark:text-gray-500">
-        <p>Poesia v1.0 • Desarrollado con React, TypeScript y Appwrite</p>
+        <p className="flex items-center justify-center gap-2 text-sm">
+          Poesia ✦ <span className="italic">Palabras en Poemas</span>
+        </p>
       </footer>
     </div>
   );

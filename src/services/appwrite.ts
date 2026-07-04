@@ -1,4 +1,4 @@
-import { Client, Account, Databases, ID, Query } from 'appwrite';
+import { Client, Account, Databases, ID, Query, Permission, Role } from 'appwrite';
 
 const client = new Client()
   .setEndpoint(import.meta.env.VITE_APPWRITE_ENDPOINT)
@@ -15,5 +15,7 @@ export const USERS_COLLECTION_ID = import.meta.env.VITE_APPWRITE_USERS_COLLECTIO
 export const LIKES_COLLECTION_ID = import.meta.env.VITE_APPWRITE_LIKES_COLLECTION_ID;
 export const COMMENTS_COLLECTION_ID = import.meta.env.VITE_APPWRITE_COMMENTS_COLLECTION_ID;
 export const FAVORITES_COLLECTION_ID = import.meta.env.VITE_APPWRITE_FAVORITES_COLLECTION_ID;
+export const FRIENDSHIPS_COLLECTION_ID = import.meta.env.VITE_APPWRITE_FRIENDSHIPS_COLLECTION_ID;
+export const MESSAGES_COLLECTION_ID = import.meta.env.VITE_APPWRITE_MESSAGES_COLLECTION_ID;
 
-export { ID, Query };
+export { ID, Query, Permission, Role };

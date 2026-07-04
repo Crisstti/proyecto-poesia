@@ -6,7 +6,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true); // Solo para la verificación inicial
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     checkAuth();
@@ -16,11 +16,31 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     try {
       const currentUser = await authService.getCurrentUser();
       setUser(currentUser);
+
+      // Reparar perfil faltante en la colección "users" (usuarios antiguos)
+      if (currentUser) {
+        await ensureUserProfile(currentUser);
+      }
     } catch (error) {
       console.error('Error checking auth:', error);
       setUser(null);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const ensureUserProfile = async (currentUser: User) => {
+    try {
+      const profile = await userService.getUserProfile(currentUser.$id);
+      if (!profile) {
+        await userService.createUserProfile(
+          currentUser.$id,
+          currentUser.email,
+          currentUser.name
+        );
+      }
+    } catch (error) {
+      console.error('Error ensuring user profile:', error);
     }
   };
 
@@ -38,6 +58,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     await authService.login(email, password);
     const user = await authService.getCurrentUser();
     setUser(user);
+
+    if (user) {
+      await ensureUserProfile(user);
+    }
   };
 
   const logout = async () => {
@@ -53,6 +77,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     await authService.updateProfile(name);
     const updatedUser = await authService.getCurrentUser();
     setUser(updatedUser);
+
+    // Mantener sincronizado el nombre en la colección users
+    if (updatedUser) {
+      try {
+        await userService.updateUserProfile(updatedUser.$id, { name });
+      } catch (error) {
+        console.error('Error syncing profile name:', error);
+      }
+    }
   };
 
   const updatePassword = async (oldPassword: string, newPassword: string) => {

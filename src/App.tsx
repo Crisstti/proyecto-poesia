@@ -16,12 +16,15 @@ import {
   Explore,
   Profile,
   Settings,
-  NotFound
+  NotFound,
+  UserProfile,
+  Contacts,
+  Messages,
+  Conversation
 } from './pages';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated, loading } = useAuth();
-
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white dark:bg-gray-900">
@@ -32,17 +35,12 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
       </div>
     );
   }
-
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
-  }
-
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
   return <>{children}</>;
 };
 
 const AppContent: React.FC = () => {
   const { loading } = useAuth();
-
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white dark:bg-gray-900">
@@ -70,6 +68,10 @@ const AppContent: React.FC = () => {
         <Route path="/explorar" element={<ProtectedRoute><Explore /></ProtectedRoute>} />
         <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
         <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+        <Route path="/user/:id" element={<ProtectedRoute><UserProfile /></ProtectedRoute>} />
+        <Route path="/contacts" element={<ProtectedRoute><Contacts /></ProtectedRoute>} />
+        <Route path="/messages" element={<ProtectedRoute><Messages /></ProtectedRoute>} />
+        <Route path="/messages/:userId" element={<ProtectedRoute><Conversation /></ProtectedRoute>} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </div>

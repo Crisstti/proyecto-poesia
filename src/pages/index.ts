@@ -10,3 +10,7 @@ export { Explore } from './Explore';
 export { Profile } from './Profile';
 export { Settings } from './Settings';
 export { NotFound } from './NotFound';
+export { UserProfile } from './UserProfile';
+export { Contacts } from './Contacts';
+export { Messages } from './Messages';
+export { Conversation } from './Conversation';

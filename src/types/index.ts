@@ -28,6 +28,30 @@ export interface Comment {
   createdAt: string;
 }
 
+export interface Friendship {
+  $id: string;
+  senderId: string;
+  receiverId: string;
+  status: 'pending' | 'accepted' | 'rejected';
+}
+
+export interface Message {
+  $id: string;
+  senderId: string;
+  receiverId: string;
+  content: string;
+  createdAt: string;
+  read: boolean;
+}
+
+export interface UserProfile {
+  $id: string;
+  email: string;
+  name: string;
+  bio: string;
+  createdAt: string;
+}
+
 export interface PoetyTemplate {
   id: string;
   name: string;
