@@ -20,7 +20,8 @@ import {
   UserProfile,
   Contacts,
   Messages,
-  Conversation
+  Conversation,
+  Policies
 } from './pages';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -56,11 +57,15 @@ const AppContent: React.FC = () => {
     <div className="min-h-screen bg-white dark:bg-gray-900 transition-colors duration-300">
       <Navbar />
       <Routes>
+        {/* Públicas */}
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/politicas" element={<Policies />} />
+
+        {/* Protegidas */}
         <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
         <Route path="/editor" element={<ProtectedRoute><Editor /></ProtectedRoute>} />
         <Route path="/editor/:id" element={<ProtectedRoute><Editor /></ProtectedRoute>} />

@@ -139,8 +139,15 @@ export const Home: React.FC = () => {
 
       {/* Footer */}
       <footer className="border-t border-white/10 py-8 text-center text-gray-400 dark:text-gray-500">
-        <p className="flex items-center justify-center gap-2 text-sm">
+        <p className="flex items-center justify-center gap-2 text-sm mb-2">
           Poesia ✦ <span className="italic">Palabras en Poemas</span>
+        </p>
+        <p className="text-xs text-gray-600 dark:text-gray-600 max-w-lg mx-auto px-4">
+          Al usar esta plataforma aceptas nuestras{' '}
+          <a href="/politicas" className="text-primary/70 hover:text-primary transition hover:underline">
+            Políticas de Uso y Privacidad
+          </a>
+          . El contenido ofensivo o que incumpla nuestras normas puede resultar en la eliminación de la cuenta.
         </p>
       </footer>
     </div>

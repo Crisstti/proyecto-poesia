@@ -10,6 +10,7 @@ import {
   FAVORITES_COLLECTION_ID,
   FRIENDSHIPS_COLLECTION_ID,
   MESSAGES_COLLECTION_ID,
+  REPORTS_COLLECTION_ID,
   ID,
   Query,
   Permission,
@@ -596,6 +597,39 @@ export const messagesService = {
       ]
     );
     return response.total;
+  }
+};
+
+// Reports Services
+export const reportsService = {
+  async reportPoem(
+    poemId: string,
+    reporterId: string,
+    reason: string
+  ): Promise<void> {
+    await databases.createDocument(
+      DB_ID,
+      REPORTS_COLLECTION_ID,
+      ID.unique(),
+      {
+        poemId,
+        reporterId,
+        reason,
+        createdAt: new Date().toISOString()
+      }
+    );
+  },
+
+  async hasReported(poemId: string, reporterId: string): Promise<boolean> {
+    const response = await databases.listDocuments(
+      DB_ID,
+      REPORTS_COLLECTION_ID,
+      [
+        Query.equal('poemId', poemId),
+        Query.equal('reporterId', reporterId)
+      ]
+    );
+    return response.total > 0;
   }
 };
 

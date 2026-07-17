@@ -4,6 +4,7 @@ import { formatDate } from '../utils';
 import { useAuth } from '../context/AuthContext';
 import { likesService } from '../services';
 import { CommentSection } from './CommentSection';
+import { ReportButton } from './ReportButton';
 import { X, Share2, Heart, Check } from 'lucide-react';
 
 interface PoemViewProps {
@@ -25,7 +26,7 @@ export const PoemView: React.FC<PoemViewProps> = ({ poem, onClose }) => {
     'sonnet': 'Soneto',
     'free-verse': 'Verso Libre',
     'acrostic': 'Acróstico',
-    'reflection': 'Reflexión'
+    'reflection': 'Reflexión Poética'
   };
 
   useEffect(() => {
@@ -157,7 +158,15 @@ export const PoemView: React.FC<PoemViewProps> = ({ poem, onClose }) => {
             </button>
           </div>
 
-          {/* Sección de comentarios */}
+          {/* Reportar */}
+          <div className="flex justify-end">
+            <ReportButton
+              poemId={poem.$id}
+              authorId={poem.userId}
+            />
+          </div>
+
+          {/* Comentarios */}
           <CommentSection poemId={poem.$id} />
         </div>
       </div>

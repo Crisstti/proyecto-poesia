@@ -22,7 +22,7 @@ export const LoginForm: React.FC = () => {
       if (!validateEmail(email)) throw new Error('Email inválido');
       if (!password) throw new Error('Contraseña requerida');
       await login(email, password);
-      navigate('/dashboard');
+      navigate('/');
     } catch (err) {
       setError(err instanceof Error ? translateAppwriteError(err) : 'Error en el inicio de sesión');
     } finally {
