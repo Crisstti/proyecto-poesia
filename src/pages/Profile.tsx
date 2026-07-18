@@ -1,26 +1,54 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { translateAppwriteError } from '../utils/errorMessages';
 import { AlertCircle, CheckCircle, Save, ArrowLeft } from 'lucide-react';
 import { Avatar } from '../components/Avatar';
+import { userService } from '../services';
 
 export const Profile: React.FC = () => {
   const { user, updateProfile } = useAuth();
   const navigate = useNavigate();
   const [name, setName] = useState(user?.name || '');
+  const [bio, setBio] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [loadingBio, setLoadingBio] = useState(true);
+
+  // Cargar bio actual desde la colección users
+  useEffect(() => {
+    const loadProfile = async () => {
+      if (!user) return;
+      try {
+        const profile = await userService.getUserProfile(user.$id);
+        if (profile?.bio) setBio(profile.bio);
+      } catch (err) {
+        console.error('Error loading bio:', err);
+      } finally {
+        setLoadingBio(false);
+      }
+    };
+    loadProfile();
+  }, [user]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setSuccess(false);
     if (!name.trim()) { setError('El nombre no puede estar vacío'); return; }
+    if (bio.length > 200) { setError('La bio no puede superar 200 caracteres'); return; }
     setLoading(true);
     try {
+      // Actualizar nombre en Auth
       await updateProfile(name.trim());
+      // Actualizar nombre y bio en la colección users
+      if (user) {
+        await userService.updateUserProfile(user.$id, {
+          name: name.trim(),
+          bio: bio.trim()
+        });
+      }
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
     } catch (err) {
@@ -45,7 +73,7 @@ export const Profile: React.FC = () => {
 
         {/* Avatar grande centrado */}
         <div className="flex flex-col items-center mb-8">
-          {user && <Avatar name={user.name} size="lg" />}
+          {user && <Avatar name={name || user.name} size="lg" />}
           <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mt-4">
             Mi Perfil
           </h1>
@@ -84,6 +112,7 @@ export const Profile: React.FC = () => {
               El email no se puede modificar.
             </p>
           </div>
+
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Nombre
@@ -96,9 +125,31 @@ export const Profile: React.FC = () => {
               disabled={loading}
             />
           </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Bio
+              <span className="text-gray-400 dark:text-gray-500 font-normal ml-2">
+                (opcional)
+              </span>
+            </label>
+            <textarea
+              value={bio}
+              onChange={(e) => setBio(e.target.value)}
+              placeholder="Cuéntale a la comunidad quién eres como poeta..."
+              rows={3}
+              maxLength={200}
+              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 resize-none"
+              disabled={loading || loadingBio}
+            />
+            <p className="text-xs text-gray-400 dark:text-gray-500 mt-1 text-right">
+              {bio.length}/200
+            </p>
+          </div>
+
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || loadingBio}
             className="w-full bg-gradient-to-r from-primary to-secondary text-white font-semibold py-2 rounded-lg hover:shadow-lg transition disabled:opacity-50 flex items-center justify-center gap-2"
           >
             <Save size={20} />
