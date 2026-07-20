@@ -2,7 +2,7 @@ import React, { useRef, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { LogOut, Settings, Compass, Sun, Moon } from 'lucide-react';
+import { LogOut, Settings, Compass, Sun, Moon, Shield } from 'lucide-react';
 import { Avatar } from './Avatar';
 
 export const Navbar: React.FC = () => {
@@ -121,6 +121,18 @@ export const Navbar: React.FC = () => {
                       <Settings size={18} />
                       Configuración
                     </button>
+                    {user?.$id === '6a2d5682001c1ab1a33a' && (
+                      <>
+                        <hr className="my-2 border-gray-200 dark:border-gray-600" />
+                        <button
+                          onClick={() => navigate('/admin')}
+                          className="w-full text-left px-4 py-2 hover:bg-primary/10 dark:hover:bg-primary/20 text-primary flex items-center gap-2 font-semibold"
+                        >
+                          <Shield size={18} />
+                          Panel Admin
+                        </button>
+                      </>
+                    )}
                     <hr className="my-2 border-gray-200 dark:border-gray-600" />
                     <button
                       onClick={handleLogout}

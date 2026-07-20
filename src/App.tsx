@@ -21,8 +21,11 @@ import {
   Contacts,
   Messages,
   Conversation,
-  Policies
+  Policies,
+  Admin
 } from './pages';
+
+const ADMIN_ID = '6a2d5682001c1ab1a33a';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated, loading } = useAuth();
@@ -37,6 +40,22 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
     );
   }
   if (!isAuthenticated) return <Navigate to="/login" replace />;
+  return <>{children}</>;
+};
+
+const AdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { user, loading } = useAuth();
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-white dark:bg-gray-900">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-gray-600 dark:text-gray-300">Cargando...</p>
+        </div>
+      </div>
+    );
+  }
+  if (!user || user.$id !== ADMIN_ID) return <Navigate to="/" replace />;
   return <>{children}</>;
 };
 
@@ -77,6 +96,10 @@ const AppContent: React.FC = () => {
         <Route path="/contacts" element={<ProtectedRoute><Contacts /></ProtectedRoute>} />
         <Route path="/messages" element={<ProtectedRoute><Messages /></ProtectedRoute>} />
         <Route path="/messages/:userId" element={<ProtectedRoute><Conversation /></ProtectedRoute>} />
+
+        {/* Solo admin */}
+        <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />
+
         <Route path="*" element={<NotFound />} />
       </Routes>
     </div>

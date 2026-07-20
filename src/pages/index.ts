@@ -15,3 +15,4 @@ export { Contacts } from './Contacts';
 export { Messages } from './Messages';
 export { Conversation } from './Conversation';
 export { Policies } from './Policies';
+export { Admin } from './Admin';
