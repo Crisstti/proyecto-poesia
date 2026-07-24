@@ -1,4 +1,4 @@
-import { User, Poem, Comment, Friendship, UserProfile, Message } from '../types';
+import { User, Poem, Comment, Friendship, UserProfile, Notification, Message } from '../types';
 import {
   account,
   databases,
@@ -11,6 +11,7 @@ import {
   FRIENDSHIPS_COLLECTION_ID,
   MESSAGES_COLLECTION_ID,
   REPORTS_COLLECTION_ID,
+  NOTIFICATIONS_COLLECTION_ID,
   ID,
   Query,
   Permission,
@@ -67,6 +68,117 @@ export const authService = {
 
   async updatePassword(oldPassword: string, newPassword: string) {
     return await account.updatePassword(newPassword, oldPassword);
+  }
+};
+
+// ⚠️ Notifications Services — declarado PRIMERO para que los demás servicios puedan usarlo
+export const notificationsService = {
+  async createNotification(
+    userId: string,
+    type: Notification['type'],
+    fromUserId: string,
+    fromUserName: string,
+    message: string,
+    linkTo?: string
+  ): Promise<void> {
+    if (userId === fromUserId) return;
+
+    try {
+      await databases.createDocument(
+        DB_ID,
+        NOTIFICATIONS_COLLECTION_ID,
+        ID.unique(),
+        {
+          userId,
+          type,
+          fromUserId,
+          fromUserName,
+          message,
+          read: false,
+          createdAt: new Date().toISOString(),
+          linkTo: linkTo || ''
+        }
+        // Sin permisos por documento — la colección maneja los permisos
+      );
+    } catch (err) {
+      console.error('Error creating notification:', err);
+    }
+  },
+
+  async getNotifications(userId: string): Promise<Notification[]> {
+    const response = await databases.listDocuments(
+      DB_ID,
+      NOTIFICATIONS_COLLECTION_ID,
+      [
+        Query.equal('userId', userId),
+        Query.orderDesc('createdAt'),
+        Query.limit(50)
+      ]
+    );
+    return response.documents as Notification[];
+  },
+
+  async getUnreadCount(userId: string): Promise<number> {
+    const response = await databases.listDocuments(
+      DB_ID,
+      NOTIFICATIONS_COLLECTION_ID,
+      [
+        Query.equal('userId', userId),
+        Query.equal('read', false)
+      ]
+    );
+    return response.total;
+  },
+
+  async markAsRead(notificationId: string): Promise<void> {
+    await databases.updateDocument(
+      DB_ID,
+      NOTIFICATIONS_COLLECTION_ID,
+      notificationId,
+      { read: true }
+    );
+  },
+
+  async markAllAsRead(userId: string): Promise<void> {
+    const unread = await databases.listDocuments(
+      DB_ID,
+      NOTIFICATIONS_COLLECTION_ID,
+      [
+        Query.equal('userId', userId),
+        Query.equal('read', false)
+      ]
+    );
+    await Promise.allSettled(
+      unread.documents.map(doc =>
+        databases.updateDocument(
+          DB_ID,
+          NOTIFICATIONS_COLLECTION_ID,
+          doc.$id,
+          { read: true }
+        )
+      )
+    );
+  },
+
+  async deleteNotification(notificationId: string): Promise<void> {
+    await databases.deleteDocument(
+      DB_ID,
+      NOTIFICATIONS_COLLECTION_ID,
+      notificationId
+    );
+  },
+
+  async deleteAllNotifications(userId: string): Promise<void> {
+    const all = await databases.listDocuments(
+      DB_ID,
+      NOTIFICATIONS_COLLECTION_ID,
+      [Query.equal('userId', userId), Query.limit(100)]
+    );
+    await Promise.allSettled(
+      all.documents.map(doc =>
+        databases.deleteDocument(DB_ID, NOTIFICATIONS_COLLECTION_ID, doc.$id)
+      )
+    );
   }
 };
 
@@ -251,7 +363,13 @@ export const likesService = {
     return response.documents.length > 0 ? response.documents[0].$id : null;
   },
 
-  async likePoem(poemId: string, userId: string): Promise<void> {
+  async likePoem(
+    poemId: string,
+    userId: string,
+    userName: string,
+    poemAuthorId: string,
+    poemTitle: string
+  ): Promise<void> {
     await databases.createDocument(
       DB_ID,
       LIKES_COLLECTION_ID,
@@ -261,6 +379,14 @@ export const likesService = {
         Permission.read(Role.user(userId)),
         Permission.delete(Role.user(userId))
       ]
+    );
+    await notificationsService.createNotification(
+      poemAuthorId,
+      'like',
+      userId,
+      userName,
+      `A ${userName} le encantó tu poesía "${poemTitle}"`,
+      `/poem/${poemId}`
     );
   },
 
@@ -345,12 +471,24 @@ export const favoritesService = {
 
 // Friendships Services
 export const friendshipsService = {
-  async sendRequest(senderId: string, receiverId: string): Promise<Friendship> {
+  async sendRequest(
+    senderId: string,
+    senderName: string,
+    receiverId: string
+  ): Promise<Friendship> {
     const response = await databases.createDocument(
       DB_ID,
       FRIENDSHIPS_COLLECTION_ID,
       ID.unique(),
       { senderId, receiverId, status: 'pending' }
+    );
+    await notificationsService.createNotification(
+      receiverId,
+      'friend_request',
+      senderId,
+      senderName,
+      `${senderName} te envió una solicitud de amistad`,
+      `/contacts`
     );
     return response as Friendship;
   },
@@ -412,11 +550,7 @@ export const friendshipsService = {
         Query.equal('status', 'accepted')
       ])
     ]);
-
-    return [
-      ...sent.documents,
-      ...received.documents
-    ] as Friendship[];
+    return [...sent.documents, ...received.documents] as Friendship[];
   },
 
   async getPendingReceived(userId: string): Promise<Friendship[]> {
@@ -476,7 +610,9 @@ export const commentsService = {
     poemId: string,
     userId: string,
     authorName: string,
-    content: string
+    content: string,
+    poemAuthorId: string,
+    poemTitle: string
   ): Promise<Comment> {
     const response = await databases.createDocument(
       DB_ID,
@@ -493,6 +629,14 @@ export const commentsService = {
         Permission.read(Role.any()),
         Permission.delete(Role.user(userId))
       ]
+    );
+    await notificationsService.createNotification(
+      poemAuthorId,
+      'comment',
+      userId,
+      authorName,
+      `${authorName} comentó tu poesía "${poemTitle}"`,
+      `/poem/${poemId}`
     );
     return response as Comment;
   },
@@ -537,6 +681,7 @@ export const messagesService = {
 
   async sendMessage(
     senderId: string,
+    senderName: string,
     receiverId: string,
     content: string
   ): Promise<Message> {
@@ -551,6 +696,14 @@ export const messagesService = {
         createdAt: new Date().toISOString(),
         read: false
       }
+    );
+    await notificationsService.createNotification(
+      receiverId,
+      'message',
+      senderId,
+      senderName,
+      `${senderName} te envió un mensaje`,
+      `/messages/${senderId}`
     );
     return response as Message;
   },
@@ -577,7 +730,6 @@ export const messagesService = {
         Query.limit(100)
       ])
     ]);
-
     return [...sent.documents, ...received.documents] as Message[];
   },
 

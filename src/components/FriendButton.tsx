@@ -40,7 +40,7 @@ export const FriendButton: React.FC<FriendButtonProps> = ({ targetUserId }) => {
   const handleSendRequest = async () => {
     setActing(true);
     try {
-      const f = await friendshipsService.sendRequest(user.$id, targetUserId);
+      const f = await friendshipsService.sendRequest(user.$id, user.name, targetUserId);
       setFriendship(f);
     } catch (err) {
       console.error('Error sending request:', err);

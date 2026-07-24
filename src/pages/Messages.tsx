@@ -5,7 +5,7 @@ import { friendshipsService, userService, messagesService } from '../services';
 import { appwrite, DB_ID, MESSAGES_COLLECTION_ID } from '../services/appwrite';
 import { UserProfile, Message } from '../types';
 import { Avatar } from '../components';
-import { ArrowLeft, MessageCircle, Trash2 } from 'lucide-react';
+import { ArrowLeft, MessageCircle, Trash2, Plus, X } from 'lucide-react';
 
 interface ConversationPreview {
   partner: UserProfile;
@@ -13,7 +13,6 @@ interface ConversationPreview {
   unreadCount: number;
 }
 
-// Helpers para localStorage
 const getStorageKey = (userId: string) => `cleared_convs_${userId}`;
 
 export const getClearedTimestamp = (userId: string, partnerId: string): string | null => {
@@ -40,8 +39,10 @@ export const Messages: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [conversations, setConversations] = useState<ConversationPreview[]>([]);
+  const [friends, setFriends] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [showNewConversation, setShowNewConversation] = useState(false);
 
   const loadConversations = async () => {
     if (!user) return;
@@ -51,58 +52,54 @@ export const Messages: React.FC = () => {
         messagesService.getAllUserMessages(user.$id)
       ]);
 
-      const previews: ConversationPreview[] = await Promise.all(
-        friendships.map(async (f) => {
+      // Cargar perfiles de amigos
+      const friendProfiles = await Promise.all(
+        friendships.map(async f => {
           const friendId = friendshipsService.getFriendId(f, user.$id);
-          const profile = await userService.getUserProfile(friendId);
-
-          // Filtrar mensajes según timestamp de limpieza
-          const clearedAt = getClearedTimestamp(user.$id, friendId);
-          const messagesWithFriend = allMessages.filter(m => {
-            const belongsToConv =
-              m.senderId === friendId || m.receiverId === friendId;
-            if (!belongsToConv) return false;
-            if (clearedAt) {
-              return new Date(m.createdAt) > new Date(clearedAt);
-            }
-            return true;
-          });
-
-          const sorted = [...messagesWithFriend].sort(
-            (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-          );
-
-          const unreadCount = messagesWithFriend.filter(
-            m => m.receiverId === user.$id && !m.read
-          ).length;
-
-          return {
-            partner: profile!,
-            lastMessage: sorted[0] || null,
-            unreadCount
-          };
+          return await userService.getUserProfile(friendId);
         })
       );
+      const validFriends = friendProfiles.filter(Boolean) as UserProfile[];
+      setFriends(validFriends);
 
-      const validPreviews = previews
-        .filter(p => p.partner)
+      const previews: ConversationPreview[] = validFriends.map(profile => {
+        const clearedAt = getClearedTimestamp(user.$id, profile.$id);
+        const messagesWithFriend = allMessages.filter(m => {
+          const belongs = m.senderId === profile.$id || m.receiverId === profile.$id;
+          if (!belongs) return false;
+          if (clearedAt) return new Date(m.createdAt) > new Date(clearedAt);
+          return true;
+        });
+
+        const sorted = [...messagesWithFriend].sort(
+          (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
+
+        const unreadCount = messagesWithFriend.filter(
+          m => m.receiverId === user.$id && !m.read
+        ).length;
+
+        return {
+          partner: profile,
+          lastMessage: sorted[0] || null,
+          unreadCount
+        };
+      });
+
+      // Mostrar solo conversaciones con mensajes (o todas si no hay ninguna)
+      const withMessages = previews
         .filter(p => {
-          // Ocultar conversaciones sin mensajes después de haber sido limpiadas
           const clearedAt = getClearedTimestamp(user.$id, p.partner.$id);
           if (clearedAt && !p.lastMessage) return false;
-          return true;
+          return p.lastMessage !== null;
         })
         .sort((a, b) => {
-          const timeA = a.lastMessage
-            ? new Date(a.lastMessage.createdAt).getTime()
-            : 0;
-          const timeB = b.lastMessage
-            ? new Date(b.lastMessage.createdAt).getTime()
-            : 0;
+          const timeA = a.lastMessage ? new Date(a.lastMessage.createdAt).getTime() : 0;
+          const timeB = b.lastMessage ? new Date(b.lastMessage.createdAt).getTime() : 0;
           return timeB - timeA;
         });
 
-      setConversations(validPreviews);
+      setConversations(withMessages);
     } catch (err) {
       console.error('Error loading conversations:', err);
     } finally {
@@ -121,7 +118,7 @@ export const Messages: React.FC = () => {
     loadConversations();
   }, [user]);
 
-  // Realtime: refrescar lista cuando llega un mensaje nuevo
+  // Realtime
   useEffect(() => {
     if (!user) return;
     const channel = `databases.${DB_ID}.collections.${MESSAGES_COLLECTION_ID}.documents`;
@@ -136,6 +133,11 @@ export const Messages: React.FC = () => {
     return () => { unsubscribe(); };
   }, [user]);
 
+  // Amigos sin conversación activa (para nueva conversación)
+  const friendsWithoutConversation = friends.filter(
+    f => !conversations.some(c => c.partner.$id === f.$id)
+  );
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Header */}
@@ -148,15 +150,74 @@ export const Messages: React.FC = () => {
             <ArrowLeft size={18} />
             Volver al Dashboard
           </button>
-          <h1 className="text-4xl font-bold mb-2 flex items-center gap-3">
-            <MessageCircle size={36} />
-            Mensajes
-          </h1>
-          <p className="text-white/80">Conversaciones con tus amigos</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-4xl font-bold mb-2 flex items-center gap-3">
+                <MessageCircle size={36} />
+                Mensajes
+              </h1>
+              <p className="text-white/80">Conversaciones con tus amigos</p>
+            </div>
+            {friends.length > 0 && (
+              <button
+                onClick={() => setShowNewConversation(prev => !prev)}
+                className="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg transition font-semibold"
+              >
+                {showNewConversation ? <X size={18} /> : <Plus size={18} />}
+                {showNewConversation ? 'Cerrar' : 'Nueva'}
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+
+        {/* Panel nueva conversación */}
+        {showNewConversation && (
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow mb-6 overflow-hidden">
+            <div className="px-4 py-3 border-b dark:border-gray-700">
+              <h3 className="font-bold text-gray-800 dark:text-gray-100">
+                Iniciar conversación con...
+              </h3>
+            </div>
+            {friends.length === 0 ? (
+              <p className="text-center text-gray-500 dark:text-gray-400 py-6 text-sm">
+                No tienes amigos aún.{' '}
+                <button
+                  onClick={() => navigate('/contacts')}
+                  className="text-primary hover:underline font-semibold"
+                >
+                  Ir a Contactos
+                </button>
+              </p>
+            ) : (
+              <div className="divide-y dark:divide-gray-700">
+                {friends.map(friend => (
+                  <button
+                    key={friend.$id}
+                    onClick={() => {
+                      setShowNewConversation(false);
+                      navigate(`/messages/${friend.$id}`);
+                    }}
+                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 transition text-left"
+                  >
+                    <Avatar name={friend.name} size="sm" />
+                    <span className="font-semibold text-gray-800 dark:text-gray-100">
+                      {friend.name}
+                    </span>
+                    {conversations.some(c => c.partner.$id === friend.$id) && (
+                      <span className="ml-auto text-xs text-gray-400 dark:text-gray-500">
+                        Conversación activa
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         {loading ? (
           <p className="text-center text-gray-500 dark:text-gray-400 py-12">
             Cargando conversaciones...
@@ -171,14 +232,26 @@ export const Messages: React.FC = () => {
               No tienes conversaciones aún
             </h3>
             <p className="text-gray-600 dark:text-gray-400 mb-6">
-              Agrega amigos y empieza a conversar con ellos
+              {friends.length > 0
+                ? 'Inicia una conversación con uno de tus amigos'
+                : 'Agrega amigos para poder enviarles mensajes'}
             </p>
-            <button
-              onClick={() => navigate('/contacts')}
-              className="bg-gradient-to-r from-primary to-secondary text-white font-bold py-3 px-8 rounded-lg hover:shadow-lg transition"
-            >
-              Ir a Contactos
-            </button>
+            {friends.length > 0 ? (
+              <button
+                onClick={() => setShowNewConversation(true)}
+                className="bg-gradient-to-r from-primary to-secondary text-white font-bold py-3 px-8 rounded-lg hover:shadow-lg transition inline-flex items-center gap-2"
+              >
+                <Plus size={20} />
+                Nueva conversación
+              </button>
+            ) : (
+              <button
+                onClick={() => navigate('/contacts')}
+                className="bg-gradient-to-r from-primary to-secondary text-white font-bold py-3 px-8 rounded-lg hover:shadow-lg transition"
+              >
+                Ir a Contactos
+              </button>
+            )}
           </div>
         ) : (
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow divide-y dark:divide-gray-700">
@@ -187,7 +260,7 @@ export const Messages: React.FC = () => {
                 {confirmDelete === partner.$id ? (
                   <div className="flex items-center justify-between px-4 py-4 bg-red-50 dark:bg-red-900/20">
                     <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">
-                      ¿Vaciar conversación con {partner.name}? Los mensajes anteriores desaparecerán solo para ti.
+                      ¿Vaciar conversación con {partner.name}?
                     </p>
                     <div className="flex gap-2 ml-4 flex-shrink-0">
                       <button
@@ -216,9 +289,7 @@ export const Messages: React.FC = () => {
                           {partner.name}
                         </p>
                         <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
-                          {lastMessage
-                            ? lastMessage.content
-                            : 'Inicia la conversación'}
+                          {lastMessage ? lastMessage.content : 'Inicia la conversación'}
                         </p>
                       </div>
                       {unreadCount > 0 && (
@@ -227,7 +298,6 @@ export const Messages: React.FC = () => {
                         </span>
                       )}
                     </button>
-
                     <button
                       onClick={() => setConfirmDelete(partner.$id)}
                       title="Vaciar conversación"

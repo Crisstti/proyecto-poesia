@@ -56,7 +56,13 @@ export const PoemView: React.FC<PoemViewProps> = ({ poem, onClose }) => {
         setLikeDocId(null);
         setLikesCount(prev => Math.max(0, prev - 1));
       } else {
-        await likesService.likePoem(poem.$id, user.$id);
+        await likesService.likePoem(
+          poem.$id,
+          user.$id,
+          user.name,
+          poem.userId,
+          poem.title
+        );
         const newLikeId = await likesService.getUserLike(poem.$id, user.$id);
         setLiked(true);
         setLikeDocId(newLikeId);
@@ -160,14 +166,15 @@ export const PoemView: React.FC<PoemViewProps> = ({ poem, onClose }) => {
 
           {/* Reportar */}
           <div className="flex justify-end">
-            <ReportButton
-              poemId={poem.$id}
-              authorId={poem.userId}
-            />
+            <ReportButton poemId={poem.$id} authorId={poem.userId} />
           </div>
 
           {/* Comentarios */}
-          <CommentSection poemId={poem.$id} />
+          <CommentSection
+            poemId={poem.$id}
+            poemAuthorId={poem.userId}
+            poemTitle={poem.title}
+          />
         </div>
       </div>
     </div>

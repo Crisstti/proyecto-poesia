@@ -8,9 +8,15 @@ import { Send, Trash2, MessageCircle } from 'lucide-react';
 
 interface CommentSectionProps {
   poemId: string;
+  poemAuthorId: string;
+  poemTitle: string;
 }
 
-export const CommentSection: React.FC<CommentSectionProps> = ({ poemId }) => {
+export const CommentSection: React.FC<CommentSectionProps> = ({
+  poemId,
+  poemAuthorId,
+  poemTitle
+}) => {
   const { user } = useAuth();
   const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState('');
@@ -45,7 +51,9 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ poemId }) => {
         poemId,
         user.$id,
         user.name,
-        newComment.trim()
+        newComment.trim(),
+        poemAuthorId,
+        poemTitle
       );
       setComments(prev => [...prev, comment]);
       setNewComment('');
@@ -69,13 +77,11 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ poemId }) => {
 
   return (
     <div className="mt-6 border-t dark:border-gray-600 pt-6">
-      {/* Header */}
       <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100 mb-4 flex items-center gap-2">
         <MessageCircle size={20} />
         Comentarios ({comments.length})
       </h3>
 
-      {/* Lista de comentarios */}
       {loading ? (
         <p className="text-gray-500 dark:text-gray-400 text-sm">
           Cargando comentarios...
@@ -121,7 +127,6 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ poemId }) => {
         </div>
       )}
 
-      {/* Formulario nuevo comentario */}
       {user ? (
         <form onSubmit={handleSubmit} className="space-y-3">
           {error && (

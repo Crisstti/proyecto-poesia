@@ -44,6 +44,18 @@ export interface Message {
   read: boolean;
 }
 
+export interface Notification {
+  $id: string;
+  userId: string;
+  type: 'like' | 'comment' | 'friend_request' | 'message';
+  fromUserId: string;
+  fromUserName: string;
+  message: string;
+  read: boolean;
+  createdAt: string;
+  linkTo?: string;
+}
+
 export interface UserProfile {
   $id: string;
   email: string;

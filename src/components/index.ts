@@ -12,3 +12,4 @@ export { Avatar } from './Avatar';
 export { FavoriteButton } from './FavoriteButton';
 export { FriendButton } from './FriendButton';
 export { ReportButton } from './ReportButton';
+export { NotificationBell } from './NotificationBell';

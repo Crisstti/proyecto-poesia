@@ -102,7 +102,7 @@ export const Conversation: React.FC = () => {
     setSending(true);
 
     try {
-      const sent = await messagesService.sendMessage(user.$id, otherUserId, content);
+      const sent = await messagesService.sendMessage(user.$id, user.name, otherUserId, content);
       setMessages(prev => {
         if (prev.some(m => m.$id === sent.$id)) return prev;
         return [...prev, sent];

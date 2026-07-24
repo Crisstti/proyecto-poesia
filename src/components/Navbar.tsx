@@ -4,6 +4,9 @@ import { useTheme } from '../context/ThemeContext';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { LogOut, Settings, Compass, Sun, Moon, Shield } from 'lucide-react';
 import { Avatar } from './Avatar';
+import { NotificationBell } from './NotificationBell';
+
+const ADMIN_ID = '6a2d5682001c1ab1a33a';
 
 export const Navbar: React.FC = () => {
   const { user, logout, isAuthenticated } = useAuth();
@@ -13,26 +16,20 @@ export const Navbar: React.FC = () => {
   const [showMenu, setShowMenu] = React.useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  // Cerrar menú al cambiar de página
   useEffect(() => {
     setShowMenu(false);
   }, [location.pathname]);
 
-  // Cerrar menú al hacer clic fuera
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
         setShowMenu(false);
       }
     };
-
     if (showMenu) {
       document.addEventListener('mousedown', handleClickOutside);
     }
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showMenu]);
 
   const handleLogout = async () => {
@@ -77,6 +74,9 @@ export const Navbar: React.FC = () => {
               {isDark ? <Sun size={20} /> : <Moon size={20} />}
             </button>
 
+            {/* Campana de notificaciones */}
+            {isAuthenticated && <NotificationBell />}
+
             {isAuthenticated ? (
               <div className="relative" ref={menuRef}>
                 <button
@@ -89,7 +89,6 @@ export const Navbar: React.FC = () => {
 
                 {showMenu && (
                   <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 rounded-lg shadow-xl z-50">
-                    {/* Header del menú con avatar */}
                     <div className="px-4 py-3 border-b dark:border-gray-600 flex items-center gap-3">
                       {user && <Avatar name={user.name} size="md" />}
                       <div className="overflow-hidden">
@@ -121,7 +120,8 @@ export const Navbar: React.FC = () => {
                       <Settings size={18} />
                       Configuración
                     </button>
-                    {user?.$id === '6a2d5682001c1ab1a33a' && (
+
+                    {user?.$id === ADMIN_ID && (
                       <>
                         <hr className="my-2 border-gray-200 dark:border-gray-600" />
                         <button
@@ -133,6 +133,7 @@ export const Navbar: React.FC = () => {
                         </button>
                       </>
                     )}
+
                     <hr className="my-2 border-gray-200 dark:border-gray-600" />
                     <button
                       onClick={handleLogout}
