@@ -18,21 +18,20 @@ import {
   Role
 } from './appwrite';
 
+const ADMIN_ID = '6a6617dc00119938ce6e';
+
 // Authentication Services
 export const authService = {
   async register(email: string, password: string, name: string): Promise<User> {
     const user = await account.create(ID.unique(), email, password, name);
     return user as User;
   },
-
   async login(email: string, password: string) {
     return await account.createEmailPasswordSession(email, password);
   },
-
   async logout() {
     return await account.deleteSession('current');
   },
-
   async getCurrentUser(): Promise<User | null> {
     try {
       const user = await account.get();
@@ -41,37 +40,27 @@ export const authService = {
       return null;
     }
   },
-
   async sendPasswordResetEmail(email: string) {
     return await account.createRecovery(
       email,
       `${window.location.origin}/reset-password`
     );
   },
-
-  async confirmPasswordReset(
-    userId: string,
-    secret: string,
-    newPassword: string,
-    confirmPassword: string
-  ) {
+  async confirmPasswordReset(userId: string, secret: string, newPassword: string, confirmPassword: string) {
     return await account.updateRecovery(userId, secret, newPassword, confirmPassword);
   },
-
   async updateProfile(name: string) {
     return await account.updateName(name);
   },
-
   async updateEmail(email: string, password: string) {
     return await account.updateEmail(email, password);
   },
-
   async updatePassword(oldPassword: string, newPassword: string) {
     return await account.updatePassword(newPassword, oldPassword);
   }
 };
 
-// ⚠️ Notifications Services — declarado PRIMERO para que los demás servicios puedan usarlo
+// ⚠️ Notifications Services — declarado PRIMERO
 export const notificationsService = {
   async createNotification(
     userId: string,
@@ -79,10 +68,10 @@ export const notificationsService = {
     fromUserId: string,
     fromUserName: string,
     message: string,
-    linkTo?: string
+    linkTo?: string,
+    urgent?: boolean
   ): Promise<void> {
     if (userId === fromUserId) return;
-
     try {
       await databases.createDocument(
         DB_ID,
@@ -96,9 +85,9 @@ export const notificationsService = {
           message,
           read: false,
           createdAt: new Date().toISOString(),
-          linkTo: linkTo || ''
+          linkTo: linkTo || '',
+          urgent: urgent || false
         }
-        // Sin permisos por documento — la colección maneja los permisos
       );
     } catch (err) {
       console.error('Error creating notification:', err);
@@ -143,29 +132,17 @@ export const notificationsService = {
     const unread = await databases.listDocuments(
       DB_ID,
       NOTIFICATIONS_COLLECTION_ID,
-      [
-        Query.equal('userId', userId),
-        Query.equal('read', false)
-      ]
+      [Query.equal('userId', userId), Query.equal('read', false)]
     );
     await Promise.allSettled(
       unread.documents.map(doc =>
-        databases.updateDocument(
-          DB_ID,
-          NOTIFICATIONS_COLLECTION_ID,
-          doc.$id,
-          { read: true }
-        )
+        databases.updateDocument(DB_ID, NOTIFICATIONS_COLLECTION_ID, doc.$id, { read: true })
       )
     );
   },
 
   async deleteNotification(notificationId: string): Promise<void> {
-    await databases.deleteDocument(
-      DB_ID,
-      NOTIFICATIONS_COLLECTION_ID,
-      notificationId
-    );
+    await databases.deleteDocument(DB_ID, NOTIFICATIONS_COLLECTION_ID, notificationId);
   },
 
   async deleteAllNotifications(userId: string): Promise<void> {
@@ -184,138 +161,66 @@ export const notificationsService = {
 
 // Poems Services
 export const poemsService = {
-  async createPoem(
-    poem: Omit<Poem, '$id' | 'createdAt' | 'updatedAt'>
-  ): Promise<Poem> {
+  async createPoem(poem: Omit<Poem, '$id' | 'createdAt' | 'updatedAt'>): Promise<Poem> {
     const user = await authService.getCurrentUser();
     if (!user) throw new Error('User not authenticated');
-
     const response = await databases.createDocument(
-      DB_ID,
-      POEMS_COLLECTION_ID,
-      ID.unique(),
-      {
-        ...poem,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      },
-      [
-        Permission.read(Role.user(user.$id)),
-        Permission.write(Role.user(user.$id))
-      ]
+      DB_ID, POEMS_COLLECTION_ID, ID.unique(),
+      { ...poem, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+      [Permission.read(Role.user(user.$id)), Permission.write(Role.user(user.$id))]
     );
     return response as Poem;
   },
 
   async getPoem(poemId: string): Promise<Poem> {
-    const response = await databases.getDocument(
-      DB_ID,
-      POEMS_COLLECTION_ID,
-      poemId
-    );
+    const response = await databases.getDocument(DB_ID, POEMS_COLLECTION_ID, poemId);
     return response as Poem;
   },
 
   async getUserPoems(userId: string): Promise<Poem[]> {
-    const response = await databases.listDocuments(
-      DB_ID,
-      POEMS_COLLECTION_ID,
-      [Query.equal('userId', userId)]
-    );
+    const response = await databases.listDocuments(DB_ID, POEMS_COLLECTION_ID, [Query.equal('userId', userId)]);
     return response.documents as Poem[];
   },
 
-  async getPublishedPoems(
-    page: number = 1,
-    limit: number = 6
-  ): Promise<{ poems: Poem[]; total: number }> {
+  async getPublishedPoems(page: number = 1, limit: number = 6): Promise<{ poems: Poem[]; total: number }> {
     const offset = (page - 1) * limit;
-    const response = await databases.listDocuments(
-      DB_ID,
-      POEMS_COLLECTION_ID,
-      [
-        Query.equal('published', true),
-        Query.orderDesc('updatedAt'),
-        Query.limit(limit),
-        Query.offset(offset)
-      ]
-    );
-    return {
-      poems: response.documents as Poem[],
-      total: response.total
-    };
+    const response = await databases.listDocuments(DB_ID, POEMS_COLLECTION_ID, [
+      Query.equal('published', true), Query.orderDesc('updatedAt'),
+      Query.limit(limit), Query.offset(offset)
+    ]);
+    return { poems: response.documents as Poem[], total: response.total };
   },
 
-  async searchPublishedPoems(
-    term: string
-  ): Promise<{ poems: Poem[]; total: number }> {
+  async searchPublishedPoems(term: string): Promise<{ poems: Poem[]; total: number }> {
     const [byTitle, byTheme, byAuthor] = await Promise.all([
-      databases.listDocuments(DB_ID, POEMS_COLLECTION_ID, [
-        Query.equal('published', true),
-        Query.search('title', term),
-        Query.limit(25)
-      ]),
-      databases.listDocuments(DB_ID, POEMS_COLLECTION_ID, [
-        Query.equal('published', true),
-        Query.search('theme', term),
-        Query.limit(25)
-      ]),
-      databases.listDocuments(DB_ID, POEMS_COLLECTION_ID, [
-        Query.equal('published', true),
-        Query.search('authorName', term),
-        Query.limit(25)
-      ])
+      databases.listDocuments(DB_ID, POEMS_COLLECTION_ID, [Query.equal('published', true), Query.search('title', term), Query.limit(25)]),
+      databases.listDocuments(DB_ID, POEMS_COLLECTION_ID, [Query.equal('published', true), Query.search('theme', term), Query.limit(25)]),
+      databases.listDocuments(DB_ID, POEMS_COLLECTION_ID, [Query.equal('published', true), Query.search('authorName', term), Query.limit(25)])
     ]);
-
     const seen = new Set<string>();
     const merged: Poem[] = [];
-
-    for (const doc of [
-      ...byTitle.documents,
-      ...byTheme.documents,
-      ...byAuthor.documents
-    ]) {
-      if (!seen.has(doc.$id)) {
-        seen.add(doc.$id);
-        merged.push(doc as Poem);
-      }
+    for (const doc of [...byTitle.documents, ...byTheme.documents, ...byAuthor.documents]) {
+      if (!seen.has(doc.$id)) { seen.add(doc.$id); merged.push(doc as Poem); }
     }
-
     return { poems: merged, total: merged.length };
   },
 
   async getPoemsByIds(poemIds: string[]): Promise<Poem[]> {
     if (poemIds.length === 0) return [];
-    const response = await databases.listDocuments(
-      DB_ID,
-      POEMS_COLLECTION_ID,
-      [Query.equal('$id', poemIds)]
-    );
+    const response = await databases.listDocuments(DB_ID, POEMS_COLLECTION_ID, [Query.equal('$id', poemIds)]);
     return response.documents as Poem[];
   },
 
   async getPublishedPoemsByUser(userId: string): Promise<Poem[]> {
-    const response = await databases.listDocuments(
-      DB_ID,
-      POEMS_COLLECTION_ID,
-      [
-        Query.equal('userId', userId),
-        Query.equal('published', true),
-        Query.orderDesc('createdAt')
-      ]
-    );
+    const response = await databases.listDocuments(DB_ID, POEMS_COLLECTION_ID, [
+      Query.equal('userId', userId), Query.equal('published', true), Query.orderDesc('createdAt')
+    ]);
     return response.documents as Poem[];
   },
 
   async updatePoem(poemId: string, updates: Partial<Poem>): Promise<Poem> {
-    const response = await databases.updateDocument(
-      DB_ID,
-      POEMS_COLLECTION_ID,
-      poemId,
-      {
-        ...updates,
-        updatedAt: new Date().toISOString()
-      }
+    const response = await databases.updateDocument(DB_ID, POEMS_COLLECTION_ID, poemId,
+      { ...updates, updatedAt: new Date().toISOString() }
     );
     return response as Poem;
   },
@@ -331,62 +236,31 @@ export const poemsService = {
     }
   },
 
-  async publishPoem(poemId: string): Promise<Poem> {
-    return this.updatePoem(poemId, { published: true });
-  },
-
-  async unpublishPoem(poemId: string): Promise<Poem> {
-    return this.updatePoem(poemId, { published: false });
-  }
+  async publishPoem(poemId: string): Promise<Poem> { return this.updatePoem(poemId, { published: true }); },
+  async unpublishPoem(poemId: string): Promise<Poem> { return this.updatePoem(poemId, { published: false }); }
 };
 
 // Likes Services
 export const likesService = {
   async getLikesCount(poemId: string): Promise<number> {
-    const response = await databases.listDocuments(
-      DB_ID,
-      LIKES_COLLECTION_ID,
-      [Query.equal('poemId', poemId)]
-    );
+    const response = await databases.listDocuments(DB_ID, LIKES_COLLECTION_ID, [Query.equal('poemId', poemId)]);
     return response.total;
   },
 
   async getUserLike(poemId: string, userId: string): Promise<string | null> {
-    const response = await databases.listDocuments(
-      DB_ID,
-      LIKES_COLLECTION_ID,
-      [
-        Query.equal('poemId', poemId),
-        Query.equal('userId', userId)
-      ]
-    );
+    const response = await databases.listDocuments(DB_ID, LIKES_COLLECTION_ID, [
+      Query.equal('poemId', poemId), Query.equal('userId', userId)
+    ]);
     return response.documents.length > 0 ? response.documents[0].$id : null;
   },
 
-  async likePoem(
-    poemId: string,
-    userId: string,
-    userName: string,
-    poemAuthorId: string,
-    poemTitle: string
-  ): Promise<void> {
-    await databases.createDocument(
-      DB_ID,
-      LIKES_COLLECTION_ID,
-      ID.unique(),
-      { poemId, userId },
-      [
-        Permission.read(Role.user(userId)),
-        Permission.delete(Role.user(userId))
-      ]
+  async likePoem(poemId: string, userId: string, userName: string, poemAuthorId: string, poemTitle: string): Promise<void> {
+    await databases.createDocument(DB_ID, LIKES_COLLECTION_ID, ID.unique(), { poemId, userId },
+      [Permission.read(Role.user(userId)), Permission.delete(Role.user(userId))]
     );
     await notificationsService.createNotification(
-      poemAuthorId,
-      'like',
-      userId,
-      userName,
-      `A ${userName} le encantó tu poesía "${poemTitle}"`,
-      `/poem/${poemId}`
+      poemAuthorId, 'like', userId, userName,
+      `A ${userName} le encantó tu poesía "${poemTitle}"`, `/poem/${poemId}`
     );
   },
 
@@ -395,248 +269,131 @@ export const likesService = {
   },
 
   async deleteLikesForPoem(poemId: string): Promise<void> {
-    const response = await databases.listDocuments(
-      DB_ID,
-      LIKES_COLLECTION_ID,
-      [Query.equal('poemId', poemId)]
-    );
-    await Promise.all(
-      response.documents.map(doc =>
-        databases.deleteDocument(DB_ID, LIKES_COLLECTION_ID, doc.$id)
-      )
-    );
+    const response = await databases.listDocuments(DB_ID, LIKES_COLLECTION_ID, [Query.equal('poemId', poemId)]);
+    await Promise.all(response.documents.map(doc => databases.deleteDocument(DB_ID, LIKES_COLLECTION_ID, doc.$id)));
   }
 };
 
 // Favorites Services
 export const favoritesService = {
   async getUserFavorites(userId: string): Promise<string[]> {
-    const response = await databases.listDocuments(
-      DB_ID,
-      FAVORITES_COLLECTION_ID,
-      [Query.equal('userId', userId)]
-    );
+    const response = await databases.listDocuments(DB_ID, FAVORITES_COLLECTION_ID, [Query.equal('userId', userId)]);
     return response.documents.map(doc => doc.poemId);
   },
 
-  async getUserFavoriteDocId(
-    poemId: string,
-    userId: string
-  ): Promise<string | null> {
-    const response = await databases.listDocuments(
-      DB_ID,
-      FAVORITES_COLLECTION_ID,
-      [
-        Query.equal('poemId', poemId),
-        Query.equal('userId', userId)
-      ]
-    );
+  async getUserFavoriteDocId(poemId: string, userId: string): Promise<string | null> {
+    const response = await databases.listDocuments(DB_ID, FAVORITES_COLLECTION_ID, [
+      Query.equal('poemId', poemId), Query.equal('userId', userId)
+    ]);
     return response.documents.length > 0 ? response.documents[0].$id : null;
   },
 
   async addFavorite(poemId: string, userId: string): Promise<void> {
-    await databases.createDocument(
-      DB_ID,
-      FAVORITES_COLLECTION_ID,
-      ID.unique(),
-      { poemId, userId },
-      [
-        Permission.read(Role.user(userId)),
-        Permission.delete(Role.user(userId))
-      ]
+    await databases.createDocument(DB_ID, FAVORITES_COLLECTION_ID, ID.unique(), { poemId, userId },
+      [Permission.read(Role.user(userId)), Permission.delete(Role.user(userId))]
     );
   },
 
   async removeFavorite(favoriteDocId: string): Promise<void> {
-    await databases.deleteDocument(
-      DB_ID,
-      FAVORITES_COLLECTION_ID,
-      favoriteDocId
-    );
+    await databases.deleteDocument(DB_ID, FAVORITES_COLLECTION_ID, favoriteDocId);
   },
 
   async deleteFavoritesForPoem(poemId: string): Promise<void> {
-    const response = await databases.listDocuments(
-      DB_ID,
-      FAVORITES_COLLECTION_ID,
-      [Query.equal('poemId', poemId)]
-    );
-    await Promise.all(
-      response.documents.map(doc =>
-        databases.deleteDocument(DB_ID, FAVORITES_COLLECTION_ID, doc.$id)
-      )
-    );
+    const response = await databases.listDocuments(DB_ID, FAVORITES_COLLECTION_ID, [Query.equal('poemId', poemId)]);
+    await Promise.all(response.documents.map(doc => databases.deleteDocument(DB_ID, FAVORITES_COLLECTION_ID, doc.$id)));
   }
 };
 
 // Friendships Services
 export const friendshipsService = {
-  async sendRequest(
-    senderId: string,
-    senderName: string,
-    receiverId: string
-  ): Promise<Friendship> {
+  async sendRequest(senderId: string, senderName: string, receiverId: string): Promise<Friendship> {
     const response = await databases.createDocument(
-      DB_ID,
-      FRIENDSHIPS_COLLECTION_ID,
-      ID.unique(),
+      DB_ID, FRIENDSHIPS_COLLECTION_ID, ID.unique(),
       { senderId, receiverId, status: 'pending' }
     );
     await notificationsService.createNotification(
-      receiverId,
-      'friend_request',
-      senderId,
-      senderName,
-      `${senderName} te envió una solicitud de amistad`,
-      `/contacts`
+      receiverId, 'friend_request', senderId, senderName,
+      `${senderName} te envió una solicitud de amistad`, `/contacts`
     );
     return response as Friendship;
   },
 
-  async getFriendshipBetween(
-    userId1: string,
-    userId2: string
-  ): Promise<Friendship | null> {
+  async getFriendshipBetween(userId1: string, userId2: string): Promise<Friendship | null> {
     const [sent, received] = await Promise.all([
-      databases.listDocuments(DB_ID, FRIENDSHIPS_COLLECTION_ID, [
-        Query.equal('senderId', userId1),
-        Query.equal('receiverId', userId2)
-      ]),
-      databases.listDocuments(DB_ID, FRIENDSHIPS_COLLECTION_ID, [
-        Query.equal('senderId', userId2),
-        Query.equal('receiverId', userId1)
-      ])
+      databases.listDocuments(DB_ID, FRIENDSHIPS_COLLECTION_ID, [Query.equal('senderId', userId1), Query.equal('receiverId', userId2)]),
+      databases.listDocuments(DB_ID, FRIENDSHIPS_COLLECTION_ID, [Query.equal('senderId', userId2), Query.equal('receiverId', userId1)])
     ]);
-
     if (sent.documents.length > 0) return sent.documents[0] as Friendship;
     if (received.documents.length > 0) return received.documents[0] as Friendship;
     return null;
   },
 
-  async acceptRequest(friendshipId: string): Promise<void> {
-    await databases.updateDocument(
-      DB_ID,
-      FRIENDSHIPS_COLLECTION_ID,
-      friendshipId,
-      { status: 'accepted' }
+  async acceptRequest(friendshipId: string, acceptorName: string, senderId: string): Promise<void> {
+    await databases.updateDocument(DB_ID, FRIENDSHIPS_COLLECTION_ID, friendshipId, { status: 'accepted' });
+    // Notificar al que envió la solicitud
+    await notificationsService.createNotification(
+      senderId, 'friend_request', ADMIN_ID, acceptorName,
+      `${acceptorName} aceptó tu solicitud de amistad`, `/contacts`
     );
   },
 
   async rejectRequest(friendshipId: string): Promise<void> {
-    await databases.updateDocument(
-      DB_ID,
-      FRIENDSHIPS_COLLECTION_ID,
-      friendshipId,
-      { status: 'rejected' }
-    );
+    await databases.updateDocument(DB_ID, FRIENDSHIPS_COLLECTION_ID, friendshipId, { status: 'rejected' });
   },
 
   async cancelRequest(friendshipId: string): Promise<void> {
-    await databases.deleteDocument(
-      DB_ID,
-      FRIENDSHIPS_COLLECTION_ID,
-      friendshipId
-    );
+    await databases.deleteDocument(DB_ID, FRIENDSHIPS_COLLECTION_ID, friendshipId);
   },
 
   async getFriends(userId: string): Promise<Friendship[]> {
     const [sent, received] = await Promise.all([
-      databases.listDocuments(DB_ID, FRIENDSHIPS_COLLECTION_ID, [
-        Query.equal('senderId', userId),
-        Query.equal('status', 'accepted')
-      ]),
-      databases.listDocuments(DB_ID, FRIENDSHIPS_COLLECTION_ID, [
-        Query.equal('receiverId', userId),
-        Query.equal('status', 'accepted')
-      ])
+      databases.listDocuments(DB_ID, FRIENDSHIPS_COLLECTION_ID, [Query.equal('senderId', userId), Query.equal('status', 'accepted')]),
+      databases.listDocuments(DB_ID, FRIENDSHIPS_COLLECTION_ID, [Query.equal('receiverId', userId), Query.equal('status', 'accepted')])
     ]);
     return [...sent.documents, ...received.documents] as Friendship[];
   },
 
   async getPendingReceived(userId: string): Promise<Friendship[]> {
-    const response = await databases.listDocuments(
-      DB_ID,
-      FRIENDSHIPS_COLLECTION_ID,
-      [
-        Query.equal('receiverId', userId),
-        Query.equal('status', 'pending')
-      ]
-    );
+    const response = await databases.listDocuments(DB_ID, FRIENDSHIPS_COLLECTION_ID, [
+      Query.equal('receiverId', userId), Query.equal('status', 'pending')
+    ]);
     return response.documents as Friendship[];
   },
 
   async getPendingSent(userId: string): Promise<Friendship[]> {
-    const response = await databases.listDocuments(
-      DB_ID,
-      FRIENDSHIPS_COLLECTION_ID,
-      [
-        Query.equal('senderId', userId),
-        Query.equal('status', 'pending')
-      ]
-    );
+    const response = await databases.listDocuments(DB_ID, FRIENDSHIPS_COLLECTION_ID, [
+      Query.equal('senderId', userId), Query.equal('status', 'pending')
+    ]);
     return response.documents as Friendship[];
   },
 
   getFriendId(friendship: Friendship, currentUserId: string): string {
-    return friendship.senderId === currentUserId
-      ? friendship.receiverId
-      : friendship.senderId;
+    return friendship.senderId === currentUserId ? friendship.receiverId : friendship.senderId;
   },
 
   async removeFriend(friendshipId: string): Promise<void> {
-    await databases.deleteDocument(
-      DB_ID,
-      FRIENDSHIPS_COLLECTION_ID,
-      friendshipId
-    );
+    await databases.deleteDocument(DB_ID, FRIENDSHIPS_COLLECTION_ID, friendshipId);
   }
 };
 
 // Comments Services
 export const commentsService = {
   async getComments(poemId: string): Promise<Comment[]> {
-    const response = await databases.listDocuments(
-      DB_ID,
-      COMMENTS_COLLECTION_ID,
-      [
-        Query.equal('poemId', poemId),
-        Query.orderAsc('createdAt')
-      ]
-    );
+    const response = await databases.listDocuments(DB_ID, COMMENTS_COLLECTION_ID, [
+      Query.equal('poemId', poemId), Query.orderAsc('createdAt')
+    ]);
     return response.documents as Comment[];
   },
 
-  async createComment(
-    poemId: string,
-    userId: string,
-    authorName: string,
-    content: string,
-    poemAuthorId: string,
-    poemTitle: string
-  ): Promise<Comment> {
+  async createComment(poemId: string, userId: string, authorName: string, content: string, poemAuthorId: string, poemTitle: string): Promise<Comment> {
     const response = await databases.createDocument(
-      DB_ID,
-      COMMENTS_COLLECTION_ID,
-      ID.unique(),
-      {
-        poemId,
-        userId,
-        authorName,
-        content,
-        createdAt: new Date().toISOString()
-      },
-      [
-        Permission.read(Role.any()),
-        Permission.delete(Role.user(userId))
-      ]
+      DB_ID, COMMENTS_COLLECTION_ID, ID.unique(),
+      { poemId, userId, authorName, content, createdAt: new Date().toISOString() },
+      [Permission.read(Role.any()), Permission.delete(Role.user(userId))]
     );
     await notificationsService.createNotification(
-      poemAuthorId,
-      'comment',
-      userId,
-      authorName,
-      `${authorName} comentó tu poesía "${poemTitle}"`,
-      `/poem/${poemId}`
+      poemAuthorId, 'comment', userId, authorName,
+      `${authorName} comentó tu poesía "${poemTitle}"`, `/poem/${poemId}`
     );
     return response as Comment;
   },
@@ -646,16 +403,8 @@ export const commentsService = {
   },
 
   async deleteCommentsForPoem(poemId: string): Promise<void> {
-    const response = await databases.listDocuments(
-      DB_ID,
-      COMMENTS_COLLECTION_ID,
-      [Query.equal('poemId', poemId)]
-    );
-    await Promise.all(
-      response.documents.map(doc =>
-        databases.deleteDocument(DB_ID, COMMENTS_COLLECTION_ID, doc.$id)
-      )
-    );
+    const response = await databases.listDocuments(DB_ID, COMMENTS_COLLECTION_ID, [Query.equal('poemId', poemId)]);
+    await Promise.all(response.documents.map(doc => databases.deleteDocument(DB_ID, COMMENTS_COLLECTION_ID, doc.$id)));
   }
 };
 
@@ -663,91 +412,45 @@ export const commentsService = {
 export const messagesService = {
   async getConversation(userId: string, otherUserId: string): Promise<Message[]> {
     const [sent, received] = await Promise.all([
-      databases.listDocuments(DB_ID, MESSAGES_COLLECTION_ID, [
-        Query.equal('senderId', userId),
-        Query.equal('receiverId', otherUserId)
-      ]),
-      databases.listDocuments(DB_ID, MESSAGES_COLLECTION_ID, [
-        Query.equal('senderId', otherUserId),
-        Query.equal('receiverId', userId)
-      ])
+      databases.listDocuments(DB_ID, MESSAGES_COLLECTION_ID, [Query.equal('senderId', userId), Query.equal('receiverId', otherUserId)]),
+      databases.listDocuments(DB_ID, MESSAGES_COLLECTION_ID, [Query.equal('senderId', otherUserId), Query.equal('receiverId', userId)])
     ]);
-
     const all = [...sent.documents, ...received.documents] as Message[];
-    return all.sort(
-      (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-    );
+    return all.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
   },
 
-  async sendMessage(
-    senderId: string,
-    senderName: string,
-    receiverId: string,
-    content: string
-  ): Promise<Message> {
+  async sendMessage(senderId: string, senderName: string, receiverId: string, content: string): Promise<Message> {
     const response = await databases.createDocument(
-      DB_ID,
-      MESSAGES_COLLECTION_ID,
-      ID.unique(),
-      {
-        senderId,
-        receiverId,
-        content,
-        createdAt: new Date().toISOString(),
-        read: false
-      }
+      DB_ID, MESSAGES_COLLECTION_ID, ID.unique(),
+      { senderId, receiverId, content, createdAt: new Date().toISOString(), read: false }
     );
     await notificationsService.createNotification(
-      receiverId,
-      'message',
-      senderId,
-      senderName,
-      `${senderName} te envió un mensaje`,
-      `/messages/${senderId}`
+      receiverId, 'message', senderId, senderName,
+      `${senderName} te envió un mensaje`, `/messages/${senderId}`
     );
     return response as Message;
   },
 
   async markAsRead(messageId: string): Promise<void> {
-    await databases.updateDocument(
-      DB_ID,
-      MESSAGES_COLLECTION_ID,
-      messageId,
-      { read: true }
-    );
+    await databases.updateDocument(DB_ID, MESSAGES_COLLECTION_ID, messageId, { read: true });
   },
 
   async getAllUserMessages(userId: string): Promise<Message[]> {
     const [sent, received] = await Promise.all([
-      databases.listDocuments(DB_ID, MESSAGES_COLLECTION_ID, [
-        Query.equal('senderId', userId),
-        Query.orderDesc('createdAt'),
-        Query.limit(100)
-      ]),
-      databases.listDocuments(DB_ID, MESSAGES_COLLECTION_ID, [
-        Query.equal('receiverId', userId),
-        Query.orderDesc('createdAt'),
-        Query.limit(100)
-      ])
+      databases.listDocuments(DB_ID, MESSAGES_COLLECTION_ID, [Query.equal('senderId', userId), Query.orderDesc('createdAt'), Query.limit(100)]),
+      databases.listDocuments(DB_ID, MESSAGES_COLLECTION_ID, [Query.equal('receiverId', userId), Query.orderDesc('createdAt'), Query.limit(100)])
     ]);
     return [...sent.documents, ...received.documents] as Message[];
   },
 
   getConversationPartnerId(message: Message, currentUserId: string): string {
-    return message.senderId === currentUserId
-      ? message.receiverId
-      : message.senderId;
+    return message.senderId === currentUserId ? message.receiverId : message.senderId;
   },
 
   async getUnreadCount(userId: string): Promise<number> {
-    const response = await databases.listDocuments(
-      DB_ID,
-      MESSAGES_COLLECTION_ID,
-      [
-        Query.equal('receiverId', userId),
-        Query.equal('read', false)
-      ]
-    );
+    const response = await databases.listDocuments(DB_ID, MESSAGES_COLLECTION_ID, [
+      Query.equal('receiverId', userId), Query.equal('read', false)
+    ]);
     return response.total;
   }
 };
@@ -757,30 +460,51 @@ export const reportsService = {
   async reportPoem(
     poemId: string,
     reporterId: string,
-    reason: string
+    reason: string,
+    poemAuthorId: string,
+    poemTitle: string
   ): Promise<void> {
     await databases.createDocument(
-      DB_ID,
-      REPORTS_COLLECTION_ID,
-      ID.unique(),
-      {
-        poemId,
-        reporterId,
-        reason,
-        createdAt: new Date().toISOString()
-      }
+      DB_ID, REPORTS_COLLECTION_ID, ID.unique(),
+      { poemId, reporterId, reason, poemAuthorId, poemTitle, createdAt: new Date().toISOString() }
     );
+
+    // Notificación básica al admin
+    await notificationsService.createNotification(
+      ADMIN_ID, 'comment', reporterId, 'Sistema',
+      `Nueva denuncia: "${reason}" en la poesía "${poemTitle}"`, `/admin`
+    );
+
+    // Verificar reincidencia por poesía (≥2 reportes en la misma poesía)
+    const reportsByPoem = await databases.listDocuments(DB_ID, REPORTS_COLLECTION_ID, [
+      Query.equal('poemId', poemId)
+    ]);
+    if (reportsByPoem.total >= 2) {
+      await notificationsService.createNotification(
+        ADMIN_ID, 'comment', reporterId, 'Sistema',
+        `⚠️ Reincidente por poesía: "${poemTitle}" acumula ${reportsByPoem.total} reportes`,
+        `/admin`, true
+      );
+    }
+
+    // Verificar reincidencia por autor (≥2 reportes en distintas poesías del mismo autor)
+    const reportsByAuthor = await databases.listDocuments(DB_ID, REPORTS_COLLECTION_ID, [
+      Query.equal('poemAuthorId', poemAuthorId)
+    ]);
+    const uniquePoems = new Set(reportsByAuthor.documents.map((r: any) => r.poemId));
+    if (uniquePoems.size >= 2) {
+      await notificationsService.createNotification(
+        ADMIN_ID, 'comment', reporterId, 'Sistema',
+        `⚠️ Reincidente por autor: tiene reportes en ${uniquePoems.size} poesías distintas`,
+        `/admin`, true
+      );
+    }
   },
 
   async hasReported(poemId: string, reporterId: string): Promise<boolean> {
-    const response = await databases.listDocuments(
-      DB_ID,
-      REPORTS_COLLECTION_ID,
-      [
-        Query.equal('poemId', poemId),
-        Query.equal('reporterId', reporterId)
-      ]
-    );
+    const response = await databases.listDocuments(DB_ID, REPORTS_COLLECTION_ID, [
+      Query.equal('poemId', poemId), Query.equal('reporterId', reporterId)
+    ]);
     return response.total > 0;
   }
 };
@@ -789,30 +513,16 @@ export const reportsService = {
 export const userService = {
   async createUserProfile(userId: string, email: string, name: string) {
     const response = await databases.createDocument(
-      DB_ID,
-      USERS_COLLECTION_ID,
-      userId,
-      {
-        email,
-        name,
-        bio: '',
-        createdAt: new Date().toISOString()
-      },
-      [
-        Permission.read(Role.user(userId)),
-        Permission.write(Role.user(userId))
-      ]
+      DB_ID, USERS_COLLECTION_ID, userId,
+      { email, name, bio: '', createdAt: new Date().toISOString() },
+      [Permission.read(Role.user(userId)), Permission.write(Role.user(userId))]
     );
     return response;
   },
 
   async getUserProfile(userId: string): Promise<UserProfile | null> {
     try {
-      const response = await databases.getDocument(
-        DB_ID,
-        USERS_COLLECTION_ID,
-        userId
-      );
+      const response = await databases.getDocument(DB_ID, USERS_COLLECTION_ID, userId);
       return response as UserProfile;
     } catch {
       return null;
@@ -820,22 +530,21 @@ export const userService = {
   },
 
   async searchUsers(term: string, currentUserId: string): Promise<UserProfile[]> {
-    const response = await databases.listDocuments(
-      DB_ID,
-      USERS_COLLECTION_ID,
-      [Query.search('name', term), Query.limit(10)]
-    );
-    return response.documents
-      .filter(doc => doc.$id !== currentUserId) as UserProfile[];
+    const response = await databases.listDocuments(DB_ID, USERS_COLLECTION_ID, [
+      Query.search('name', term), Query.limit(10)
+    ]);
+    return response.documents.filter(doc => doc.$id !== currentUserId) as UserProfile[];
+  },
+
+  async getAllUsers(): Promise<UserProfile[]> {
+    const response = await databases.listDocuments(DB_ID, USERS_COLLECTION_ID, [
+      Query.orderDesc('createdAt'), Query.limit(100)
+    ]);
+    return response.documents as UserProfile[];
   },
 
   async updateUserProfile(userId: string, updates: any) {
-    const response = await databases.updateDocument(
-      DB_ID,
-      USERS_COLLECTION_ID,
-      userId,
-      updates
-    );
+    const response = await databases.updateDocument(DB_ID, USERS_COLLECTION_ID, userId, updates);
     return response;
   }
 };

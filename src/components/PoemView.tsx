@@ -166,7 +166,7 @@ export const PoemView: React.FC<PoemViewProps> = ({ poem, onClose }) => {
 
           {/* Reportar */}
           <div className="flex justify-end">
-            <ReportButton poemId={poem.$id} authorId={poem.userId} />
+            <ReportButton poemId={poem.$id} authorId={poem.userId} poemTitle={poem.title} />
           </div>
 
           {/* Comentarios */}

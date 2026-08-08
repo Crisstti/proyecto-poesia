@@ -6,7 +6,7 @@ import { LogOut, Settings, Compass, Sun, Moon, Shield } from 'lucide-react';
 import { Avatar } from './Avatar';
 import { NotificationBell } from './NotificationBell';
 
-const ADMIN_ID = '6a2d5682001c1ab1a33a';
+const ADMIN_ID = '6a6617dc00119938ce6e';
 
 export const Navbar: React.FC = () => {
   const { user, logout, isAuthenticated } = useAuth();

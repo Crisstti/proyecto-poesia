@@ -182,7 +182,11 @@ export const NotificationBell: React.FC = () => {
                   key={notification.$id}
                   onClick={() => handleNotificationClick(notification)}
                   className={`w-full text-left flex items-start gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 transition border-b dark:border-gray-700 last:border-0 ${
-                    !notification.read ? 'bg-primary/5 dark:bg-primary/10' : ''
+                    notification.urgent && !notification.read
+                      ? 'bg-red-50 dark:bg-red-900/20'
+                      : !notification.read
+                      ? 'bg-primary/5 dark:bg-primary/10'
+                      : ''
                   }`}
                 >
                   <div className="flex-shrink-0 mt-0.5">
@@ -206,7 +210,9 @@ export const NotificationBell: React.FC = () => {
                     </p>
                   </div>
                   {!notification.read && (
-                    <div className="w-2 h-2 bg-primary rounded-full flex-shrink-0 mt-1.5" />
+                    <div className={`w-2 h-2 rounded-full flex-shrink-0 mt-1.5 ${
+                      notification.urgent ? 'bg-red-500' : 'bg-primary'
+                    }`} />
                   )}
                 </button>
               ))

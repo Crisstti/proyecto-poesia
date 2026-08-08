@@ -15,9 +15,14 @@ const REPORT_REASONS = [
 interface ReportButtonProps {
   poemId: string;
   authorId: string;
+  poemTitle: string;
 }
 
-export const ReportButton: React.FC<ReportButtonProps> = ({ poemId, authorId }) => {
+export const ReportButton: React.FC<ReportButtonProps> = ({
+  poemId,
+  authorId,
+  poemTitle
+}) => {
   const { user } = useAuth();
   const [showModal, setShowModal] = useState(false);
   const [selectedReason, setSelectedReason] = useState('');
@@ -38,8 +43,8 @@ export const ReportButton: React.FC<ReportButtonProps> = ({ poemId, authorId }) 
     check();
   }, [poemId, user, authorId]);
 
-  // No mostrar si es el autor o no está logueado
   if (!user || user.$id === authorId) return null;
+
   if (alreadyReported) {
     return (
       <span className="text-xs text-gray-400 dark:text-gray-500 flex items-center gap-1">
@@ -53,7 +58,13 @@ export const ReportButton: React.FC<ReportButtonProps> = ({ poemId, authorId }) 
     if (!selectedReason || loading) return;
     setLoading(true);
     try {
-      await reportsService.reportPoem(poemId, user.$id, selectedReason);
+      await reportsService.reportPoem(
+        poemId,
+        user.$id,
+        selectedReason,
+        authorId,
+        poemTitle
+      );
       setAlreadyReported(true);
       setSuccess(true);
       setTimeout(() => {
@@ -81,7 +92,6 @@ export const ReportButton: React.FC<ReportButtonProps> = ({ poemId, authorId }) 
       {showModal && (
         <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4">
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-2xl max-w-md w-full p-6">
-
             {success ? (
               <div className="text-center py-4">
                 <div className="text-4xl mb-3">✅</div>

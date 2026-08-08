@@ -54,6 +54,7 @@ export interface Notification {
   read: boolean;
   createdAt: string;
   linkTo?: string;
+  urgent?: boolean;
 }
 
 export interface UserProfile {

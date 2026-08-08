@@ -88,7 +88,7 @@ export const Contacts: React.FC = () => {
 
   const handleAccept = async (friendship: Friendship) => {
     try {
-      await friendshipsService.acceptRequest(friendship.$id);
+      await friendshipsService.acceptRequest(friendship.$id, user?.name || '', friendship.senderId);
       await loadAll();
     } catch (err) {
       console.error('Error accepting request:', err);

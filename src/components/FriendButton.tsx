@@ -66,7 +66,7 @@ export const FriendButton: React.FC<FriendButtonProps> = ({ targetUserId }) => {
     if (!friendship) return;
     setActing(true);
     try {
-      await friendshipsService.acceptRequest(friendship.$id);
+      await friendshipsService.acceptRequest(friendship.$id, user?.name || '', friendship.senderId);
       setFriendship({ ...friendship, status: 'accepted' });
     } catch (err) {
       console.error('Error accepting request:', err);

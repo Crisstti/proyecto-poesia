@@ -142,6 +142,14 @@ export const Home: React.FC = () => {
         <p className="flex items-center justify-center gap-2 text-sm mb-2">
           Poesia ✦ <span className="italic">Palabras en Poemas</span>
         </p>
+        <p className="text-xs text-gray-500 dark:text-gray-600 mb-2">
+          <a
+            href="mailto:palabrasenpoemas@gmail.com"
+            className="hover:text-primary transition hover:underline"
+          >
+            palabrasenpoemas@gmail.com
+          </a>
+        </p>
         <p className="text-xs text-gray-600 dark:text-gray-600 max-w-lg mx-auto px-4">
           Al usar esta plataforma aceptas nuestras{' '}
           <a href="/politicas" className="text-primary/70 hover:text-primary transition hover:underline">

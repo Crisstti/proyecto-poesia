@@ -25,7 +25,7 @@ import {
   Admin
 } from './pages';
 
-const ADMIN_ID = '6a2d5682001c1ab1a33a';
+const ADMIN_ID = '6a6617dc00119938ce6e';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated, loading } = useAuth();

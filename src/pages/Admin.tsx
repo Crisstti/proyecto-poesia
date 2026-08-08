@@ -2,17 +2,19 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { databases, DB_ID, REPORTS_COLLECTION_ID, POEMS_COLLECTION_ID, USERS_COLLECTION_ID, COMMENTS_COLLECTION_ID, Query } from '../services/appwrite';
-import { poemsService } from '../services';
-import { Poem } from '../types';
+import { poemsService, userService, messagesService } from '../services';
+import { Poem, UserProfile } from '../types';
 import { Shield, Trash2, X, BookOpen, Users, MessageSquare, Flag, Eye, CheckCircle, RefreshCw } from 'lucide-react';
 
-const ADMIN_ID = '6a2d5682001c1ab1a33a';
+const ADMIN_ID = '6a6617dc00119938ce6e';
 
 interface Report {
   $id: string;
   poemId: string;
   reporterId: string;
   reason: string;
+  poemAuthorId?: string;
+  poemTitle?: string;
   createdAt: string;
 }
 
@@ -42,10 +44,18 @@ export const Admin: React.FC = () => {
 
   const [reports, setReports] = useState<ReportWithPoem[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
+  const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'reports' | 'stats'>('reports');
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [activeTab, setActiveTab] = useState<'reports' | 'stats' | 'users'>('reports');
   const [modal, setModal] = useState<ModalState>({ phase: 'closed' });
   const [acting, setActing] = useState(false);
+
+  // Mensaje oficial
+  const [officialMessage, setOfficialMessage] = useState('');
+  const [selectedUserId, setSelectedUserId] = useState('');
+  const [sendingMessage, setSendingMessage] = useState(false);
+  const [messageSent, setMessageSent] = useState(false);
 
   useEffect(() => {
     if (user && user.$id !== ADMIN_ID) {
@@ -61,8 +71,7 @@ export const Admin: React.FC = () => {
 
   const loadReports = useCallback(async (): Promise<ReportWithPoem[]> => {
     const response = await databases.listDocuments(
-      DB_ID,
-      REPORTS_COLLECTION_ID,
+      DB_ID, REPORTS_COLLECTION_ID,
       [Query.orderDesc('createdAt'), Query.limit(100)]
     );
     const reportsData = response.documents as Report[];
@@ -104,6 +113,39 @@ export const Admin: React.FC = () => {
     }
   };
 
+  const loadUsers = async () => {
+    setLoadingUsers(true);
+    try {
+      const users = await userService.getAllUsers();
+      setAllUsers(users.filter(u => u.$id !== ADMIN_ID));
+    } catch (err) {
+      console.error('Error loading users:', err);
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
+
+  const handleSendOfficialMessage = async () => {
+    if (!selectedUserId || !officialMessage.trim()) return;
+    setSendingMessage(true);
+    try {
+      await messagesService.sendMessage(
+        ADMIN_ID,
+        'Palabras en Poemas',
+        selectedUserId,
+        officialMessage.trim()
+      );
+      setMessageSent(true);
+      setOfficialMessage('');
+      setSelectedUserId('');
+      setTimeout(() => setMessageSent(false), 3000);
+    } catch (err) {
+      console.error('Error sending official message:', err);
+    } finally {
+      setSendingMessage(false);
+    }
+  };
+
   const handleDeletePoem = async () => {
     if (modal.phase !== 'confirm_delete') return;
     const { reportId, poemId, poemTitle } = modal;
@@ -113,10 +155,7 @@ export const Admin: React.FC = () => {
       try {
         await databases.deleteDocument(DB_ID, REPORTS_COLLECTION_ID, reportId);
       } catch {}
-      setModal({
-        phase: 'success',
-        message: `"${poemTitle}" fue eliminada correctamente.`
-      });
+      setModal({ phase: 'success', message: `"${poemTitle}" fue eliminada correctamente.` });
       loadReports();
       loadStats();
     } catch (err) {
@@ -133,10 +172,7 @@ export const Admin: React.FC = () => {
     setActing(true);
     try {
       await databases.deleteDocument(DB_ID, REPORTS_COLLECTION_ID, reportId);
-      setModal({
-        phase: 'success',
-        message: 'El reporte fue descartado. La poesía permanece publicada.'
-      });
+      setModal({ phase: 'success', message: 'El reporte fue descartado. La poesía permanece publicada.' });
       loadReports();
       loadStats();
     } catch (err) {
@@ -150,24 +186,17 @@ export const Admin: React.FC = () => {
   const handleCleanOrphans = async () => {
     setActing(true);
     try {
-      // Leer fresco desde Appwrite para tener los datos más actuales
       const freshReports = await loadReports();
       const orphans = freshReports.filter(r => r.poem === null);
-
       if (orphans.length === 0) {
-        setModal({
-          phase: 'success',
-          message: 'No hay reportes huérfanos que limpiar.'
-        });
+        setModal({ phase: 'success', message: 'No hay reportes huérfanos que limpiar.' });
         return;
       }
-
       const results = await Promise.allSettled(
         orphans.map(({ report }) =>
           databases.deleteDocument(DB_ID, REPORTS_COLLECTION_ID, report.$id)
         )
       );
-
       const succeeded = results.filter(r => r.status === 'fulfilled').length;
       setModal({
         phase: 'success',
@@ -186,24 +215,17 @@ export const Admin: React.FC = () => {
   const handleClearAll = async () => {
     setActing(true);
     try {
-      // Leer fresco desde Appwrite
       const freshReports = await loadReports();
-
       if (freshReports.length === 0) {
-        setModal({
-          phase: 'success',
-          message: 'No hay reportes que limpiar.'
-        });
+        setModal({ phase: 'success', message: 'No hay reportes que limpiar.' });
         return;
       }
-
       const total = freshReports.length;
       const results = await Promise.allSettled(
         freshReports.map(({ report }) =>
           databases.deleteDocument(DB_ID, REPORTS_COLLECTION_ID, report.$id)
         )
       );
-
       const succeeded = results.filter(r => r.status === 'fulfilled').length;
       setModal({
         phase: 'success',
@@ -280,6 +302,17 @@ export const Admin: React.FC = () => {
             <BookOpen size={18} />
             Estadísticas
           </button>
+          <button
+            onClick={() => { setActiveTab('users'); loadUsers(); }}
+            className={`flex items-center gap-2 px-6 py-3 font-semibold transition border-b-2 -mb-px ${
+              activeTab === 'users'
+                ? 'border-primary text-primary'
+                : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+            }`}
+          >
+            <Users size={18} />
+            Usuarios
+          </button>
         </div>
 
         {loading ? (
@@ -291,8 +324,6 @@ export const Admin: React.FC = () => {
             {/* Tab Reportes */}
             {activeTab === 'reports' && (
               <div className="space-y-4">
-
-                {/* Acciones masivas */}
                 {reports.length > 0 && (
                   <div className="flex gap-3 flex-wrap mb-4 p-4 bg-white dark:bg-gray-800 rounded-lg shadow">
                     <p className="w-full text-sm font-semibold text-gray-600 dark:text-gray-400 mb-1">
@@ -329,10 +360,7 @@ export const Admin: React.FC = () => {
                   </div>
                 ) : (
                   reports.map(({ report, poem }) => (
-                    <div
-                      key={report.$id}
-                      className="bg-white dark:bg-gray-800 rounded-lg shadow p-6"
-                    >
+                    <div key={report.$id} className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
                       <div className="flex justify-between items-start gap-4 flex-wrap">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-3">
@@ -342,11 +370,8 @@ export const Admin: React.FC = () => {
                             </span>
                             <span className="text-xs text-gray-400 dark:text-gray-500">
                               {new Date(report.createdAt).toLocaleDateString('es-CO', {
-                                day: 'numeric',
-                                month: 'long',
-                                year: 'numeric',
-                                hour: '2-digit',
-                                minute: '2-digit'
+                                day: 'numeric', month: 'long', year: 'numeric',
+                                hour: '2-digit', minute: '2-digit'
                               })}
                             </span>
                           </div>
@@ -404,10 +429,7 @@ export const Admin: React.FC = () => {
                             </button>
                           )}
                           <button
-                            onClick={() => setModal({
-                              phase: 'confirm_dismiss',
-                              reportId: report.$id
-                            })}
+                            onClick={() => setModal({ phase: 'confirm_dismiss', reportId: report.$id })}
                             className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-semibold hover:bg-gray-200 dark:hover:bg-gray-600 transition"
                           >
                             <X size={16} />
@@ -430,21 +452,143 @@ export const Admin: React.FC = () => {
                   { label: 'Comentarios', value: stats.totalComments, icon: MessageSquare, color: 'text-green-500', bg: 'bg-green-100 dark:bg-green-900/30' },
                   { label: 'Reportes', value: stats.totalReports, icon: Flag, color: 'text-red-500', bg: 'bg-red-100 dark:bg-red-900/30' }
                 ].map(({ label, value, icon: Icon, color, bg }) => (
-                  <div
-                    key={label}
-                    className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 flex items-center gap-4"
-                  >
+                  <div key={label} className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 flex items-center gap-4">
                     <div className={`${bg} p-3 rounded-full`}>
                       <Icon className={color} size={24} />
                     </div>
                     <div>
-                      <p className="text-3xl font-bold text-gray-800 dark:text-gray-100">
-                        {value}
-                      </p>
+                      <p className="text-3xl font-bold text-gray-800 dark:text-gray-100">{value}</p>
                       <p className="text-sm text-gray-500 dark:text-gray-400">{label}</p>
                     </div>
                   </div>
                 ))}
+              </div>
+            )}
+
+            {/* Tab Usuarios */}
+            {activeTab === 'users' && (
+              <div className="space-y-6">
+                {/* Mensaje oficial */}
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                  <h2 className="text-lg font-bold text-gray-800 dark:text-gray-100 mb-4 flex items-center gap-2">
+                    <MessageSquare size={20} />
+                    Enviar mensaje oficial
+                  </h2>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+                    El mensaje aparecerá en el chat del usuario como enviado por{' '}
+                    <span className="font-semibold text-primary">Palabras en Poemas</span>.
+                  </p>
+
+                  {messageSent && (
+                    <div className="bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 rounded-lg p-3 mb-4 flex items-center gap-2">
+                      <CheckCircle className="text-green-600" size={18} />
+                      <p className="text-sm text-green-700 dark:text-green-400">
+                        Mensaje enviado correctamente.
+                      </p>
+                    </div>
+                  )}
+
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Destinatario
+                      </label>
+                      <select
+                        value={selectedUserId}
+                        onChange={(e) => setSelectedUserId(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100"
+                      >
+                        <option value="">Selecciona un usuario...</option>
+                        {allUsers.map(u => (
+                          <option key={u.$id} value={u.$id}>{u.name} — {u.email}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Mensaje
+                      </label>
+                      <textarea
+                        value={officialMessage}
+                        onChange={(e) => setOfficialMessage(e.target.value)}
+                        placeholder="Escribe el mensaje oficial..."
+                        rows={4}
+                        maxLength={500}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 resize-none"
+                      />
+                      <p className="text-xs text-gray-400 mt-1 text-right">
+                        {officialMessage.length}/500
+                      </p>
+                    </div>
+                    <button
+                      onClick={handleSendOfficialMessage}
+                      disabled={sendingMessage || !selectedUserId || !officialMessage.trim()}
+                      className="w-full px-4 py-2 bg-gradient-to-r from-primary to-secondary text-white rounded-lg font-semibold hover:shadow-lg transition disabled:opacity-50 flex items-center justify-center gap-2"
+                    >
+                      <MessageSquare size={18} />
+                      {sendingMessage ? 'Enviando...' : 'Enviar mensaje oficial'}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Lista de usuarios */}
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
+                  <div className="px-6 py-4 border-b dark:border-gray-700">
+                    <h2 className="text-lg font-bold text-gray-800 dark:text-gray-100">
+                      Todos los usuarios ({allUsers.length})
+                    </h2>
+                  </div>
+                  {loadingUsers ? (
+                    <p className="text-center text-gray-500 dark:text-gray-400 py-8">
+                      Cargando usuarios...
+                    </p>
+                  ) : allUsers.length === 0 ? (
+                    <p className="text-center text-gray-500 dark:text-gray-400 py-8">
+                      No hay usuarios registrados aún.
+                    </p>
+                  ) : (
+                    <div className="divide-y dark:divide-gray-700">
+                      {allUsers.map(u => (
+                        <div
+                          key={u.$id}
+                          className={`flex items-center justify-between px-6 py-4 ${
+                            selectedUserId === u.$id
+                              ? 'bg-primary/5 dark:bg-primary/10'
+                              : ''
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 bg-primary/20 rounded-full flex items-center justify-center flex-shrink-0">
+                              <span className="text-primary font-bold text-sm">
+                                {u.name?.[0]?.toUpperCase() || '?'}
+                              </span>
+                            </div>
+                            <div>
+                              <p className="font-semibold text-gray-800 dark:text-gray-100 text-sm">
+                                {u.name}
+                              </p>
+                              <p className="text-xs text-gray-500 dark:text-gray-400">
+                                {u.email}
+                              </p>
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => setSelectedUserId(
+                              selectedUserId === u.$id ? '' : u.$id
+                            )}
+                            className={`text-xs font-semibold transition ${
+                              selectedUserId === u.$id
+                                ? 'text-red-500 hover:text-red-700'
+                                : 'text-primary hover:underline'
+                            }`}
+                          >
+                            {selectedUserId === u.$id ? 'Deseleccionar' : 'Seleccionar'}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </>
@@ -619,7 +763,6 @@ export const Admin: React.FC = () => {
                 </div>
               </>
             )}
-
           </div>
         </div>
       )}
