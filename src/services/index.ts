@@ -1,7 +1,9 @@
 import { User, Poem, Comment, Friendship, UserProfile, Notification, Message } from '../types';
+import { Functions } from 'appwrite';
 import {
   account,
   databases,
+  appwrite,
   DB_ID,
   POEMS_COLLECTION_ID,
   USERS_COLLECTION_ID,
@@ -15,7 +17,8 @@ import {
   ID,
   Query,
   Permission,
-  Role
+  Role,
+  DELETE_USER_FUNCTION_ID
 } from './appwrite';
 
 const ADMIN_ID = '6a6617dc00119938ce6e';
@@ -506,6 +509,23 @@ export const reportsService = {
       Query.equal('poemId', poemId), Query.equal('reporterId', reporterId)
     ]);
     return response.total > 0;
+  }
+};
+
+// Admin Functions
+const functions = new Functions(appwrite.client);
+
+export const adminService = {
+  async deleteUser(userId: string): Promise<void> {
+    const response = await functions.createExecution(
+      DELETE_USER_FUNCTION_ID,
+      JSON.stringify({ userId }),
+      false
+    );
+    const result = JSON.parse(response.responseBody);
+    if (!result.success) {
+      throw new Error(result.message || 'Error al eliminar usuario');
+    }
   }
 };
 

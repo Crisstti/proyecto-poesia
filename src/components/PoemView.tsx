@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import html2canvas from 'html2canvas';
 import { Poem } from '../types';
 import { formatDate } from '../utils';
 import { useAuth } from '../context/AuthContext';
 import { likesService } from '../services';
 import { CommentSection } from './CommentSection';
 import { ReportButton } from './ReportButton';
-import { X, Share2, Heart, Check } from 'lucide-react';
+import { X, Share2, Heart, Check, ImageDown } from 'lucide-react';
 
 interface PoemViewProps {
   poem: Poem;
@@ -19,6 +20,7 @@ export const PoemView: React.FC<PoemViewProps> = ({ poem, onClose }) => {
   const [likesCount, setLikesCount] = useState(0);
   const [loadingLike, setLoadingLike] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   const templateLabel: Record<Poem['templateType'], string> = {
     'blank': 'Lienzo Blanco',
@@ -94,6 +96,106 @@ export const PoemView: React.FC<PoemViewProps> = ({ poem, onClose }) => {
     }
   };
 
+  const handleExportImage = async () => {
+    setExporting(true);
+    try {
+      const element = document.createElement('div');
+      element.style.cssText = `
+        width: 600px;
+        padding: 60px;
+        background: linear-gradient(135deg, #fdf6e3 0%, #f5e6c8 50%, #fdf0d5 100%);
+        font-family: Georgia, serif;
+        position: fixed;
+        left: -9999px;
+        top: 0;
+      `;
+
+      element.innerHTML = `
+        <div style="border-left: 4px solid #7C3AED; padding-left: 24px; margin-bottom: 32px;">
+          <h1 style="font-size: 28px; color: #2d1b69; margin: 0 0 8px 0; font-family: Georgia, serif;">
+            ${poem.title}
+          </h1>
+          <p style="font-size: 14px; color: #7C3AED; margin: 0; font-style: italic;">
+            Por ${poem.authorName || 'Anónimo'}
+          </p>
+        </div>
+
+        <div style="
+          background: rgba(255,255,255,0.5);
+          border-radius: 8px;
+          padding: 32px;
+          margin-bottom: 32px;
+          border: 1px solid rgba(124,58,237,0.15);
+        ">
+          <p style="
+            font-size: 18px;
+            line-height: 1.9;
+            color: #1a1a2e;
+            white-space: pre-wrap;
+            margin: 0;
+            font-family: Georgia, serif;
+          ">${poem.content}</p>
+        </div>
+
+        <div style="
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          border-top: 1px solid rgba(124,58,237,0.2);
+          padding-top: 20px;
+        ">
+          <div>
+            <span style="
+              background: rgba(124,58,237,0.1);
+              color: #7C3AED;
+              padding: 4px 12px;
+              border-radius: 20px;
+              font-size: 12px;
+              font-family: Arial, sans-serif;
+              margin-right: 8px;
+            ">${templateLabel[poem.templateType]}</span>
+            <span style="
+              background: rgba(236,72,153,0.1);
+              color: #EC4899;
+              padding: 4px 12px;
+              border-radius: 20px;
+              font-size: 12px;
+              font-family: Arial, sans-serif;
+            ">${poem.theme}</span>
+          </div>
+          <p style="
+            font-size: 12px;
+            color: #7C3AED;
+            margin: 0;
+            font-family: Arial, sans-serif;
+            font-style: italic;
+          ">✦ Palabras en Poemas</p>
+        </div>
+      `;
+
+      document.body.appendChild(element);
+
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: null,
+        width: 600,
+        windowWidth: 600
+      });
+
+      document.body.removeChild(element);
+
+      const link = document.createElement('a');
+      link.download = `${poem.title.replace(/\s+/g, '_')}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    } catch (err) {
+      console.error('Error exporting image:', err);
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
@@ -137,7 +239,7 @@ export const PoemView: React.FC<PoemViewProps> = ({ poem, onClose }) => {
           </div>
 
           {/* Acciones */}
-          <div className="flex gap-4 border-t dark:border-gray-600 pt-4">
+          <div className="flex gap-3 border-t dark:border-gray-600 pt-4 flex-wrap">
             <button
               onClick={handleToggleLike}
               disabled={loadingLike}
@@ -151,6 +253,7 @@ export const PoemView: React.FC<PoemViewProps> = ({ poem, onClose }) => {
               {liked ? 'Te encanta' : 'Me encanta'}
               {likesCount > 0 && <span className="ml-1">({likesCount})</span>}
             </button>
+
             <button
               onClick={handleShare}
               className={`flex-1 font-semibold py-3 rounded-lg transition flex items-center justify-center gap-2 ${
@@ -162,11 +265,24 @@ export const PoemView: React.FC<PoemViewProps> = ({ poem, onClose }) => {
               {copied ? <Check size={20} /> : <Share2 size={20} />}
               {copied ? 'Enlace copiado' : 'Compartir'}
             </button>
+
+            <button
+              onClick={handleExportImage}
+              disabled={exporting}
+              className="flex-1 font-semibold py-3 rounded-lg transition flex items-center justify-center gap-2 bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-400 hover:bg-purple-200 dark:hover:bg-purple-900/60 disabled:opacity-50"
+            >
+              <ImageDown size={20} />
+              {exporting ? 'Generando...' : 'Guardar imagen'}
+            </button>
           </div>
 
           {/* Reportar */}
           <div className="flex justify-end">
-            <ReportButton poemId={poem.$id} authorId={poem.userId} poemTitle={poem.title} />
+            <ReportButton
+              poemId={poem.$id}
+              authorId={poem.userId}
+              poemTitle={poem.title}
+            />
           </div>
 
           {/* Comentarios */}

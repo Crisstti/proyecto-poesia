@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { databases, DB_ID, REPORTS_COLLECTION_ID, POEMS_COLLECTION_ID, USERS_COLLECTION_ID, COMMENTS_COLLECTION_ID, Query } from '../services/appwrite';
-import { poemsService, userService, messagesService } from '../services';
+import { poemsService, userService, messagesService, adminService } from '../services';
 import { Poem, UserProfile } from '../types';
 import { Shield, Trash2, X, BookOpen, Users, MessageSquare, Flag, Eye, CheckCircle, RefreshCw } from 'lucide-react';
 
@@ -56,6 +56,10 @@ export const Admin: React.FC = () => {
   const [selectedUserId, setSelectedUserId] = useState('');
   const [sendingMessage, setSendingMessage] = useState(false);
   const [messageSent, setMessageSent] = useState(false);
+
+  // Eliminar usuario
+  const [confirmDeleteUser, setConfirmDeleteUser] = useState<UserProfile | null>(null);
+  const [deletingUser, setDeletingUser] = useState(false);
 
   useEffect(() => {
     if (user && user.$id !== ADMIN_ID) {
@@ -143,6 +147,36 @@ export const Admin: React.FC = () => {
       console.error('Error sending official message:', err);
     } finally {
       setSendingMessage(false);
+    }
+  };
+
+  const handleDeleteUser = async () => {
+    if (!confirmDeleteUser) return;
+    setDeletingUser(true);
+    try {
+      // Primero eliminar todos los datos del usuario
+      const userPoems = await poemsService.getUserPoems(confirmDeleteUser.$id);
+      await Promise.allSettled(userPoems.map(p => poemsService.deletePoem(p.$id)));
+
+      // Luego eliminar la cuenta via Appwrite Function
+      await adminService.deleteUser(confirmDeleteUser.$id);
+
+      setAllUsers(prev => prev.filter(u => u.$id !== confirmDeleteUser.$id));
+      setConfirmDeleteUser(null);
+      setModal({
+        phase: 'success',
+        message: `El usuario "${confirmDeleteUser.name}" fue eliminado correctamente junto con todos sus datos.`
+      });
+      await loadStats();
+    } catch (err) {
+      console.error('Error deleting user:', err);
+      setConfirmDeleteUser(null);
+      setModal({
+        phase: 'success',
+        message: 'Error al eliminar el usuario. Verifica que la Appwrite Function esté desplegada correctamente.'
+      });
+    } finally {
+      setDeletingUser(false);
     }
   };
 
@@ -354,9 +388,7 @@ export const Admin: React.FC = () => {
                     <h3 className="text-xl font-bold text-gray-800 dark:text-gray-100 mb-2">
                       Sin reportes pendientes
                     </h3>
-                    <p className="text-gray-500 dark:text-gray-400">
-                      La comunidad está en orden ✦
-                    </p>
+                    <p className="text-gray-500 dark:text-gray-400">La comunidad está en orden ✦</p>
                   </div>
                 ) : (
                   reports.map(({ report, poem }) => (
@@ -375,20 +407,13 @@ export const Admin: React.FC = () => {
                               })}
                             </span>
                           </div>
-
-                          <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                            Motivo:
-                          </p>
-                          <p className="text-sm text-gray-600 dark:text-gray-400 mb-3 italic">
-                            "{report.reason}"
-                          </p>
+                          <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Motivo:</p>
+                          <p className="text-sm text-gray-600 dark:text-gray-400 mb-3 italic">"{report.reason}"</p>
 
                           {poem ? (
                             <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 border-l-4 border-red-400">
                               <div className="flex items-center justify-between mb-2">
-                                <h3 className="font-bold text-gray-800 dark:text-gray-100">
-                                  {poem.title}
-                                </h3>
+                                <h3 className="font-bold text-gray-800 dark:text-gray-100">{poem.title}</h3>
                                 <span className="text-xs text-gray-400 dark:text-gray-500">
                                   Por {poem.authorName || 'Anónimo'}
                                 </span>
@@ -552,9 +577,7 @@ export const Admin: React.FC = () => {
                         <div
                           key={u.$id}
                           className={`flex items-center justify-between px-6 py-4 ${
-                            selectedUserId === u.$id
-                              ? 'bg-primary/5 dark:bg-primary/10'
-                              : ''
+                            selectedUserId === u.$id ? 'bg-primary/5 dark:bg-primary/10' : ''
                           }`}
                         >
                           <div className="flex items-center gap-3">
@@ -572,18 +595,27 @@ export const Admin: React.FC = () => {
                               </p>
                             </div>
                           </div>
-                          <button
-                            onClick={() => setSelectedUserId(
-                              selectedUserId === u.$id ? '' : u.$id
-                            )}
-                            className={`text-xs font-semibold transition ${
-                              selectedUserId === u.$id
-                                ? 'text-red-500 hover:text-red-700'
-                                : 'text-primary hover:underline'
-                            }`}
-                          >
-                            {selectedUserId === u.$id ? 'Deseleccionar' : 'Seleccionar'}
-                          </button>
+                          <div className="flex items-center gap-3">
+                            <button
+                              onClick={() => setSelectedUserId(
+                                selectedUserId === u.$id ? '' : u.$id
+                              )}
+                              className={`text-xs font-semibold transition ${
+                                selectedUserId === u.$id
+                                  ? 'text-gray-400 hover:text-gray-600'
+                                  : 'text-primary hover:underline'
+                              }`}
+                            >
+                              {selectedUserId === u.$id ? 'Deseleccionar' : 'Seleccionar'}
+                            </button>
+                            <button
+                              onClick={() => setConfirmDeleteUser(u)}
+                              className="text-xs font-semibold text-red-500 hover:text-red-700 transition flex items-center gap-1"
+                            >
+                              <Trash2 size={12} />
+                              Eliminar
+                            </button>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -595,21 +627,18 @@ export const Admin: React.FC = () => {
         )}
       </div>
 
-      {/* Modal */}
+      {/* Modal de reportes */}
       {modal.phase !== 'closed' && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-2xl max-w-md w-full p-6">
 
-            {/* Éxito */}
             {modal.phase === 'success' && (
               <div className="text-center py-4">
                 <CheckCircle className="mx-auto text-green-500 mb-4" size={52} />
                 <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100 mb-2">
                   ¡Acción completada!
                 </h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
-                  {modal.message}
-                </p>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">{modal.message}</p>
                 <button
                   onClick={() => setModal({ phase: 'closed' })}
                   className="w-full px-4 py-2 bg-primary text-white rounded-lg font-semibold hover:bg-primary/90 transition"
@@ -619,150 +648,155 @@ export const Admin: React.FC = () => {
               </div>
             )}
 
-            {/* Confirmar eliminar poesía */}
             {modal.phase === 'confirm_delete' && (
               <>
                 <div className="flex items-center gap-3 mb-4">
                   <div className="bg-red-100 dark:bg-red-900/30 p-2 rounded-full">
                     <Trash2 className="text-red-600 dark:text-red-400" size={22} />
                   </div>
-                  <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100">
-                    Eliminar poesía
-                  </h3>
+                  <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100">Eliminar poesía</h3>
                 </div>
                 <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
                   ¿Estás seguro de que deseas eliminar{' '}
                   <span className="font-semibold text-gray-800 dark:text-gray-100">
                     "{modal.poemTitle}"
-                  </span>
-                  ? Esta acción es irreversible.
+                  </span>? Esta acción es irreversible.
                 </p>
                 <div className="flex gap-3">
-                  <button
-                    onClick={() => setModal({ phase: 'closed' })}
-                    disabled={acting}
-                    className="flex-1 px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-lg font-semibold hover:bg-gray-200 transition disabled:opacity-50"
-                  >
+                  <button onClick={() => setModal({ phase: 'closed' })} disabled={acting}
+                    className="flex-1 px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-lg font-semibold hover:bg-gray-200 transition disabled:opacity-50">
                     Cancelar
                   </button>
-                  <button
-                    onClick={handleDeletePoem}
-                    disabled={acting}
-                    className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition disabled:opacity-50"
-                  >
+                  <button onClick={handleDeletePoem} disabled={acting}
+                    className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition disabled:opacity-50">
                     {acting ? 'Eliminando...' : 'Sí, eliminar'}
                   </button>
                 </div>
               </>
             )}
 
-            {/* Confirmar descartar reporte */}
             {modal.phase === 'confirm_dismiss' && (
               <>
                 <div className="flex items-center gap-3 mb-4">
                   <div className="bg-gray-100 dark:bg-gray-700 p-2 rounded-full">
                     <X className="text-gray-600 dark:text-gray-400" size={22} />
                   </div>
-                  <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100">
-                    Descartar reporte
-                  </h3>
+                  <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100">Descartar reporte</h3>
                 </div>
                 <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
-                  ¿Descartar este reporte? La poesía permanecerá publicada y
-                  el reporte será eliminado.
+                  ¿Descartar este reporte? La poesía permanecerá publicada.
                 </p>
                 <div className="flex gap-3">
-                  <button
-                    onClick={() => setModal({ phase: 'closed' })}
-                    disabled={acting}
-                    className="flex-1 px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-lg font-semibold hover:bg-gray-200 transition disabled:opacity-50"
-                  >
+                  <button onClick={() => setModal({ phase: 'closed' })} disabled={acting}
+                    className="flex-1 px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-lg font-semibold hover:bg-gray-200 transition disabled:opacity-50">
                     Cancelar
                   </button>
-                  <button
-                    onClick={handleDismissReport}
-                    disabled={acting}
-                    className="flex-1 px-4 py-2 bg-primary text-white rounded-lg font-semibold hover:bg-primary/90 transition disabled:opacity-50"
-                  >
+                  <button onClick={handleDismissReport} disabled={acting}
+                    className="flex-1 px-4 py-2 bg-primary text-white rounded-lg font-semibold hover:bg-primary/90 transition disabled:opacity-50">
                     {acting ? 'Descartando...' : 'Sí, descartar'}
                   </button>
                 </div>
               </>
             )}
 
-            {/* Confirmar limpiar huérfanos */}
             {modal.phase === 'confirm_clean_orphans' && (
               <>
                 <div className="flex items-center gap-3 mb-4">
                   <div className="bg-yellow-100 dark:bg-yellow-900/30 p-2 rounded-full">
                     <RefreshCw className="text-yellow-600 dark:text-yellow-400" size={22} />
                   </div>
-                  <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100">
-                    Limpiar reportes huérfanos
-                  </h3>
+                  <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100">Limpiar reportes huérfanos</h3>
                 </div>
                 <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
                   Se eliminarán{' '}
                   <span className="font-semibold text-gray-800 dark:text-gray-100">
                     {orphanCount} reporte{orphanCount !== 1 ? 's' : ''}
                   </span>{' '}
-                  cuyas poesías ya no existen. Esta acción no se puede deshacer.
+                  cuyas poesías ya no existen.
                 </p>
                 <div className="flex gap-3">
-                  <button
-                    onClick={() => setModal({ phase: 'closed' })}
-                    disabled={acting}
-                    className="flex-1 px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-lg font-semibold hover:bg-gray-200 transition disabled:opacity-50"
-                  >
+                  <button onClick={() => setModal({ phase: 'closed' })} disabled={acting}
+                    className="flex-1 px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-lg font-semibold hover:bg-gray-200 transition disabled:opacity-50">
                     Cancelar
                   </button>
-                  <button
-                    onClick={handleCleanOrphans}
-                    disabled={acting}
-                    className="flex-1 px-4 py-2 bg-yellow-500 text-white rounded-lg font-semibold hover:bg-yellow-600 transition disabled:opacity-50"
-                  >
+                  <button onClick={handleCleanOrphans} disabled={acting}
+                    className="flex-1 px-4 py-2 bg-yellow-500 text-white rounded-lg font-semibold hover:bg-yellow-600 transition disabled:opacity-50">
                     {acting ? 'Limpiando...' : 'Sí, limpiar'}
                   </button>
                 </div>
               </>
             )}
 
-            {/* Confirmar limpiar todos */}
             {modal.phase === 'confirm_clear_all' && (
               <>
                 <div className="flex items-center gap-3 mb-4">
                   <div className="bg-red-100 dark:bg-red-900/30 p-2 rounded-full">
                     <Trash2 className="text-red-600 dark:text-red-400" size={22} />
                   </div>
-                  <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100">
-                    Limpiar todos los reportes
-                  </h3>
+                  <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100">Limpiar todos los reportes</h3>
                 </div>
                 <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
                   Se eliminarán{' '}
                   <span className="font-semibold text-gray-800 dark:text-gray-100">
                     todos los {reports.length} reportes
                   </span>{' '}
-                  del panel. Las poesías permanecerán publicadas. Esta acción no se puede deshacer.
+                  del panel.
                 </p>
                 <div className="flex gap-3">
-                  <button
-                    onClick={() => setModal({ phase: 'closed' })}
-                    disabled={acting}
-                    className="flex-1 px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-lg font-semibold hover:bg-gray-200 transition disabled:opacity-50"
-                  >
+                  <button onClick={() => setModal({ phase: 'closed' })} disabled={acting}
+                    className="flex-1 px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-lg font-semibold hover:bg-gray-200 transition disabled:opacity-50">
                     Cancelar
                   </button>
-                  <button
-                    onClick={handleClearAll}
-                    disabled={acting}
-                    className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition disabled:opacity-50"
-                  >
+                  <button onClick={handleClearAll} disabled={acting}
+                    className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition disabled:opacity-50">
                     {acting ? 'Limpiando...' : 'Sí, limpiar todo'}
                   </button>
                 </div>
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Modal confirmar eliminar usuario */}
+      {confirmDeleteUser && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-2xl max-w-md w-full p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="bg-red-100 dark:bg-red-900/30 p-2 rounded-full">
+                <Trash2 className="text-red-600 dark:text-red-400" size={22} />
+              </div>
+              <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100">
+                Eliminar usuario
+              </h3>
+            </div>
+            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 mb-4">
+              <p className="text-sm text-red-700 dark:text-red-400 font-semibold mb-2">
+                ⚠️ Esta acción es permanente e irreversible
+              </p>
+              <ul className="text-sm text-red-600 dark:text-red-400 space-y-1">
+                <li>✦ Se eliminará la cuenta de <strong>{confirmDeleteUser.name}</strong></li>
+                <li>✦ Se eliminarán todas sus poesías</li>
+                <li>✦ Se eliminarán sus comentarios y mensajes</li>
+                <li>✦ No podrá recuperarse</li>
+              </ul>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setConfirmDeleteUser(null)}
+                disabled={deletingUser}
+                className="flex-1 px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-lg font-semibold hover:bg-gray-200 transition disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleDeleteUser}
+                disabled={deletingUser}
+                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition disabled:opacity-50"
+              >
+                {deletingUser ? 'Eliminando...' : 'Sí, eliminar usuario'}
+              </button>
+            </div>
           </div>
         </div>
       )}
