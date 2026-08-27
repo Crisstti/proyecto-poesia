@@ -197,82 +197,89 @@ export const PoemView: React.FC<PoemViewProps> = ({ poem, onClose }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-2 sm:p-4">
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+
         {/* Header */}
-        <div className="bg-gradient-to-r from-primary to-secondary text-white p-6 sticky top-0 z-10">
-          <div className="flex justify-between items-start">
-            <div className="flex-1">
-              <h2 className="text-3xl font-bold mb-2">{poem.title}</h2>
+        <div className="bg-gradient-to-r from-primary to-secondary text-white p-4 sm:p-6 sticky top-0 z-10">
+          <div className="flex justify-between items-start gap-3">
+            <div className="flex-1 min-w-0">
+              <h2 className="text-xl sm:text-3xl font-bold mb-2 leading-tight">
+                {poem.title}
+              </h2>
               <div className="flex flex-wrap gap-2">
-                <span className="bg-white/20 px-3 py-1 rounded-full text-sm">
+                <span className="bg-white/20 px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm">
                   {templateLabel[poem.templateType]}
                 </span>
-                <span className="bg-white/20 px-3 py-1 rounded-full text-sm">
+                <span className="bg-white/20 px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm">
                   {poem.theme}
                 </span>
               </div>
               {poem.authorName && (
-                <p className="text-sm text-white/80 mt-2">Por {poem.authorName}</p>
+                <p className="text-xs sm:text-sm text-white/80 mt-2">
+                  Por {poem.authorName}
+                </p>
               )}
             </div>
             <button
               onClick={onClose}
-              className="text-white hover:bg-white/20 p-2 rounded-lg transition"
+              className="text-white hover:bg-white/20 p-2 rounded-lg transition flex-shrink-0"
             >
-              <X size={24} />
+              <X size={22} />
             </button>
           </div>
         </div>
 
         {/* Content */}
-        <div className="p-6 space-y-6">
+        <div className="p-4 sm:p-6 space-y-5">
           <div>
-            <p className="text-gray-600 dark:text-gray-400 text-sm mb-4">
+            <p className="text-gray-600 dark:text-gray-400 text-xs sm:text-sm mb-3">
               Creado: {formatDate(poem.createdAt)}
             </p>
-            <div className="bg-gray-50 dark:bg-gray-700 p-6 rounded-lg border-l-4 border-primary">
-              <p className="text-lg leading-relaxed whitespace-pre-wrap font-serif text-gray-800 dark:text-gray-100">
+            <div className="bg-gray-50 dark:bg-gray-700 p-4 sm:p-6 rounded-lg border-l-4 border-primary">
+              <p className="text-base sm:text-lg leading-relaxed whitespace-pre-wrap font-serif text-gray-800 dark:text-gray-100">
                 {poem.content}
               </p>
             </div>
           </div>
 
-          {/* Acciones */}
-          <div className="flex gap-3 border-t dark:border-gray-600 pt-4 flex-wrap">
+          {/* Acciones — grid de 3 columnas en móvil */}
+          <div className="grid grid-cols-3 gap-2 border-t dark:border-gray-600 pt-4">
             <button
               onClick={handleToggleLike}
               disabled={loadingLike}
-              className={`flex-1 font-semibold py-3 rounded-lg transition flex items-center justify-center gap-2 disabled:opacity-50 ${
+              className={`font-semibold py-2 sm:py-3 px-2 sm:px-4 rounded-lg transition flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 text-xs sm:text-sm disabled:opacity-50 ${
                 liked
                   ? 'bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400'
                   : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
               }`}
             >
-              <Heart size={20} fill={liked ? 'currentColor' : 'none'} />
-              {liked ? 'Te encanta' : 'Me encanta'}
-              {likesCount > 0 && <span className="ml-1">({likesCount})</span>}
+              <Heart size={18} fill={liked ? 'currentColor' : 'none'} />
+              <span className="text-center leading-tight">
+                {liked ? 'Te encanta' : 'Me encanta'}
+                {likesCount > 0 && <span className="block sm:inline sm:ml-1">({likesCount})</span>}
+              </span>
             </button>
 
             <button
               onClick={handleShare}
-              className={`flex-1 font-semibold py-3 rounded-lg transition flex items-center justify-center gap-2 ${
+              className={`font-semibold py-2 sm:py-3 px-2 sm:px-4 rounded-lg transition flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 text-xs sm:text-sm ${
                 copied
                   ? 'bg-green-100 dark:bg-green-900/40 text-green-600 dark:text-green-400'
                   : 'bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-900/60'
               }`}
             >
-              {copied ? <Check size={20} /> : <Share2 size={20} />}
-              {copied ? 'Enlace copiado' : 'Compartir'}
+              {copied ? <Check size={18} /> : <Share2 size={18} />}
+              <span>{copied ? 'Copiado' : 'Compartir'}</span>
             </button>
 
             <button
               onClick={handleExportImage}
               disabled={exporting}
-              className="flex-1 font-semibold py-3 rounded-lg transition flex items-center justify-center gap-2 bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-400 hover:bg-purple-200 dark:hover:bg-purple-900/60 disabled:opacity-50"
+              className="font-semibold py-2 sm:py-3 px-2 sm:px-4 rounded-lg transition flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 text-xs sm:text-sm bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-400 hover:bg-purple-200 dark:hover:bg-purple-900/60 disabled:opacity-50"
             >
-              <ImageDown size={20} />
-              {exporting ? 'Generando...' : 'Guardar imagen'}
+              <ImageDown size={18} />
+              <span>{exporting ? 'Generando...' : 'Guardar imagen'}</span>
             </button>
           </div>
 

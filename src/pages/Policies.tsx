@@ -57,7 +57,7 @@ export const Policies: React.FC = () => {
                 1. Propósito de la plataforma
               </h3>
               <p className="leading-relaxed">
-                Poesia es un espacio creativo dedicado a la escritura, publicación
+                Palabras en Poemas es un espacio creativo dedicado a la escritura, publicación
                 y difusión de poesías. La plataforma está diseñada para fomentar
                 la expresión artística, el respeto mutuo y la construcción de una
                 comunidad literaria positiva e inclusiva.
@@ -120,7 +120,7 @@ export const Policies: React.FC = () => {
                 5. Propiedad del contenido
               </h3>
               <p className="leading-relaxed">
-                El contenido que publicas en Poesia es tuyo. Al publicarlo, nos
+                El contenido que publicas en Palabras en Poemas es tuyo. Al publicarlo, nos
                 otorgas una licencia no exclusiva para mostrarlo dentro de la
                 plataforma. No vendemos ni transferimos tu contenido a terceros.
                 Puedes eliminar tu contenido en cualquier momento.
@@ -189,7 +189,7 @@ export const Policies: React.FC = () => {
                 3. No vendemos tus datos
               </h3>
               <p className="leading-relaxed">
-                Poesia no vende, alquila ni comparte tus datos personales con
+                Palabras en Poemas no vende, alquila ni comparte tus datos personales con
                 terceros con fines comerciales. Tus datos son tuyos y los tratamos
                 con absoluta confidencialidad.
               </p>
@@ -225,9 +225,13 @@ export const Policies: React.FC = () => {
               </h3>
               <p className="leading-relaxed">
                 Al eliminar tu cuenta desde Configuración, todos tus datos
-                personales, poesías, comentarios, mensajes, likes y favoritos
-                serán eliminados de forma permanente e irreversible de nuestra
-                base de datos. Esta acción no puede deshacerse.
+                visibles — poesías, comentarios, mensajes, likes y favoritos —
+                serán eliminados permanentemente y dejarán de ser visibles para
+                los demás. Tus credenciales de acceso (email y contraseña) se
+                conservan por razones de seguridad técnica. Si deseas eliminar
+                completamente tu acceso a la plataforma, escríbenos a{' '}
+                <span className="text-primary">palabrasenpoemas@gmail.com</span>{' '}
+                y lo gestionamos en un plazo de 48 horas.
               </p>
             </div>
 
@@ -264,7 +268,7 @@ export const Policies: React.FC = () => {
             construido sobre la confianza."
           </p>
           <p className="text-gray-600 text-xs mt-4">
-            Poesia ✦ Palabras en Poemas
+            ✦ Palabras en Poemas
           </p>
         </div>
       </div>

@@ -55,17 +55,22 @@ export const Settings: React.FC = () => {
     setDeleteError('');
 
     try {
-      // 1. Obtener y eliminar todos los datos del usuario
-      const userPoems = await poemsService.getUserPoems(user.$id);
-      await Promise.all(userPoems.map(p => poemsService.deletePoem(p.$id)));
+      const userId = user.$id;
 
-      // 2. Eliminar perfil
-      try {
-        await userService.updateUserProfile(user.$id, { deleted: true });
-      } catch {}
+      // 1. Limpiar todos los datos del usuario
+      const { cleanupUserData, adminService } = await import('../services');
+      await cleanupUserData(userId);
 
-      // 3. Cerrar sesión y redirigir
+      // 2. Cerrar sesión primero (antes de eliminar la cuenta)
       await logout();
+
+      // 3. Eliminar la cuenta de Auth via Appwrite Function
+      try {
+        await adminService.deleteUser(userId);
+      } catch (authErr: any) {
+        console.warn('No se pudo eliminar cuenta de Auth:', authErr.message);
+      }
+
       navigate('/');
     } catch (err) {
       console.error('Error deleting account:', err);
@@ -184,15 +189,24 @@ export const Settings: React.FC = () => {
 
             <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 mb-4">
               <p className="text-sm text-red-700 dark:text-red-400 font-semibold mb-2">
-                ⚠️ Esta acción es permanente e irreversible
+                ⚠️ Esta acción eliminará permanentemente todos tus datos
               </p>
               <ul className="text-sm text-red-600 dark:text-red-400 space-y-1">
-                <li>✦ Se eliminarán todas tus poesías</li>
-                <li>✦ Se eliminarán todos tus comentarios</li>
+                <li>✦ Se eliminarán todas tus poesías publicadas y borradores</li>
+                <li>✦ Se eliminarán todos tus comentarios en otras poesías</li>
                 <li>✦ Se eliminarán tus mensajes y contactos</li>
                 <li>✦ Se eliminarán tus favoritos y likes</li>
-                <li>✦ Tu cuenta no podrá recuperarse</li>
+                <li>✦ Tu contenido dejará de ser visible para los demás</li>
               </ul>
+              <p className="text-xs text-red-500 dark:text-red-400 mt-3 pt-3 border-t border-red-200 dark:border-red-700">
+                Nota: tus credenciales de acceso (email y contraseña) se conservan por seguridad. Si deseas eliminar completamente tu acceso, contacta a{' '}
+                <a
+                  href="mailto:palabrasenpoemas@gmail.com"
+                  className="underline font-semibold"
+                >
+                  palabrasenpoemas@gmail.com
+                </a>
+              </p>
             </div>
 
             <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">

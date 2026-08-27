@@ -529,6 +529,106 @@ export const adminService = {
   }
 };
 
+// Limpieza completa de datos de usuario
+export const cleanupUserData = async (userId: string): Promise<void> => {
+  try {
+    // 1. Eliminar todas las poesías (y sus likes, comentarios, favoritos asociados)
+    const userPoems = await poemsService.getUserPoems(userId);
+    await Promise.allSettled(userPoems.map(p => poemsService.deletePoem(p.$id)));
+
+    // 2. Eliminar likes que el usuario dio a otras poesías
+    const likesGiven = await databases.listDocuments(DB_ID, LIKES_COLLECTION_ID, [
+      Query.equal('userId', userId)
+    ]);
+    await Promise.allSettled(
+      likesGiven.documents.map(doc =>
+        databases.deleteDocument(DB_ID, LIKES_COLLECTION_ID, doc.$id)
+      )
+    );
+
+    // 3. Eliminar comentarios que el usuario hizo en otras poesías
+    const commentsGiven = await databases.listDocuments(DB_ID, COMMENTS_COLLECTION_ID, [
+      Query.equal('userId', userId)
+    ]);
+    await Promise.allSettled(
+      commentsGiven.documents.map(doc =>
+        databases.deleteDocument(DB_ID, COMMENTS_COLLECTION_ID, doc.$id)
+      )
+    );
+
+    // 4. Eliminar favoritos que el usuario guardó
+    const favoritesGiven = await databases.listDocuments(DB_ID, FAVORITES_COLLECTION_ID, [
+      Query.equal('userId', userId)
+    ]);
+    await Promise.allSettled(
+      favoritesGiven.documents.map(doc =>
+        databases.deleteDocument(DB_ID, FAVORITES_COLLECTION_ID, doc.$id)
+      )
+    );
+
+    // 5. Eliminar amistades (enviadas y recibidas)
+    const [friendsSent, friendsReceived] = await Promise.all([
+      databases.listDocuments(DB_ID, FRIENDSHIPS_COLLECTION_ID, [Query.equal('senderId', userId)]),
+      databases.listDocuments(DB_ID, FRIENDSHIPS_COLLECTION_ID, [Query.equal('receiverId', userId)])
+    ]);
+    await Promise.allSettled([
+      ...friendsSent.documents.map(doc =>
+        databases.deleteDocument(DB_ID, FRIENDSHIPS_COLLECTION_ID, doc.$id)
+      ),
+      ...friendsReceived.documents.map(doc =>
+        databases.deleteDocument(DB_ID, FRIENDSHIPS_COLLECTION_ID, doc.$id)
+      )
+    ]);
+
+    // 6. Eliminar mensajes enviados y recibidos
+    const [messagesSent, messagesReceived] = await Promise.all([
+      databases.listDocuments(DB_ID, MESSAGES_COLLECTION_ID, [Query.equal('senderId', userId)]),
+      databases.listDocuments(DB_ID, MESSAGES_COLLECTION_ID, [Query.equal('receiverId', userId)])
+    ]);
+    await Promise.allSettled([
+      ...messagesSent.documents.map(doc =>
+        databases.deleteDocument(DB_ID, MESSAGES_COLLECTION_ID, doc.$id)
+      ),
+      ...messagesReceived.documents.map(doc =>
+        databases.deleteDocument(DB_ID, MESSAGES_COLLECTION_ID, doc.$id)
+      )
+    ]);
+
+    // 7. Eliminar notificaciones enviadas y recibidas
+    const [notifReceived, notifSent] = await Promise.all([
+      databases.listDocuments(DB_ID, NOTIFICATIONS_COLLECTION_ID, [Query.equal('userId', userId)]),
+      databases.listDocuments(DB_ID, NOTIFICATIONS_COLLECTION_ID, [Query.equal('fromUserId', userId)])
+    ]);
+    await Promise.allSettled([
+      ...notifReceived.documents.map(doc =>
+        databases.deleteDocument(DB_ID, NOTIFICATIONS_COLLECTION_ID, doc.$id)
+      ),
+      ...notifSent.documents.map(doc =>
+        databases.deleteDocument(DB_ID, NOTIFICATIONS_COLLECTION_ID, doc.$id)
+      )
+    ]);
+
+    // 8. Eliminar reportes hechos por el usuario
+    const reportsMade = await databases.listDocuments(DB_ID, REPORTS_COLLECTION_ID, [
+      Query.equal('reporterId', userId)
+    ]);
+    await Promise.allSettled(
+      reportsMade.documents.map(doc =>
+        databases.deleteDocument(DB_ID, REPORTS_COLLECTION_ID, doc.$id)
+      )
+    );
+
+    // 9. Eliminar perfil de la colección users
+    try {
+      await databases.deleteDocument(DB_ID, USERS_COLLECTION_ID, userId);
+    } catch {}
+
+  } catch (err) {
+    console.error('Error in cleanupUserData:', err);
+    throw err;
+  }
+};
+
 // User Profile Services
 export const userService = {
   async createUserProfile(userId: string, email: string, name: string) {

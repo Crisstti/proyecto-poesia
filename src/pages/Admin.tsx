@@ -154,18 +154,22 @@ export const Admin: React.FC = () => {
     if (!confirmDeleteUser) return;
     setDeletingUser(true);
     try {
-      // Primero eliminar todos los datos del usuario
-      const userPoems = await poemsService.getUserPoems(confirmDeleteUser.$id);
-      await Promise.allSettled(userPoems.map(p => poemsService.deletePoem(p.$id)));
+      // 1. Limpiar todos los datos del usuario
+      const { cleanupUserData } = await import('../services');
+      await cleanupUserData(confirmDeleteUser.$id);
 
-      // Luego eliminar la cuenta via Appwrite Function
-      await adminService.deleteUser(confirmDeleteUser.$id);
+      // 2. Eliminar la cuenta de Auth via Appwrite Function
+      try {
+        await adminService.deleteUser(confirmDeleteUser.$id);
+      } catch (authErr: any) {
+        console.warn('Usuario no encontrado en Auth:', authErr.message);
+      }
 
       setAllUsers(prev => prev.filter(u => u.$id !== confirmDeleteUser.$id));
       setConfirmDeleteUser(null);
       setModal({
         phase: 'success',
-        message: `El usuario "${confirmDeleteUser.name}" fue eliminado correctamente junto con todos sus datos.`
+        message: `El usuario "${confirmDeleteUser.name}" y todos sus datos fueron eliminados correctamente.`
       });
       await loadStats();
     } catch (err) {
@@ -173,7 +177,7 @@ export const Admin: React.FC = () => {
       setConfirmDeleteUser(null);
       setModal({
         phase: 'success',
-        message: 'Error al eliminar el usuario. Verifica que la Appwrite Function esté desplegada correctamente.'
+        message: 'Error al eliminar el usuario. Intenta de nuevo.'
       });
     } finally {
       setDeletingUser(false);

@@ -27,7 +27,6 @@ export const PoemEditor: React.FC<{ poemId?: string }> = ({ poemId }) => {
   const handleSave = async (published: boolean = false) => {
     setError('');
     setLoading(true);
-
     try {
       if (!title.trim()) throw new Error('El título es requerido');
       if (!content.trim()) throw new Error('El contenido es requerido');
@@ -62,7 +61,7 @@ export const PoemEditor: React.FC<{ poemId?: string }> = ({ poemId }) => {
       <div className="grid md:grid-cols-3 gap-8">
         {/* Editor */}
         <div className="md:col-span-2">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4 sm:p-6">
             <h2 className="text-2xl font-bold mb-6 text-gray-800 dark:text-gray-100">
               {existingPoem ? 'Editar Poesía' : 'Nueva Poesía'}
             </h2>
@@ -122,11 +121,12 @@ export const PoemEditor: React.FC<{ poemId?: string }> = ({ poemId }) => {
                 </select>
               </div>
 
-              <div className="flex gap-4 pt-6">
+              {/* Botones — columna en móvil, fila en desktop */}
+              <div className="flex flex-col sm:flex-row gap-3 pt-6">
                 <button
                   onClick={() => handleSave(false)}
                   disabled={loading}
-                  className="flex-1 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-100 font-semibold py-2 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="flex-1 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-100 font-semibold py-3 px-4 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                   <Save size={20} />
                   Guardar como Borrador
@@ -134,7 +134,7 @@ export const PoemEditor: React.FC<{ poemId?: string }> = ({ poemId }) => {
                 <button
                   onClick={() => handleSave(true)}
                   disabled={loading}
-                  className="flex-1 bg-gradient-to-r from-primary to-secondary text-white font-semibold py-2 rounded-lg hover:shadow-lg transition disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="flex-1 bg-gradient-to-r from-primary to-secondary text-white font-semibold py-3 px-4 rounded-lg hover:shadow-lg transition disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                   <Save size={20} />
                   Guardar y Publicar
@@ -142,7 +142,7 @@ export const PoemEditor: React.FC<{ poemId?: string }> = ({ poemId }) => {
                 <button
                   onClick={() => navigate('/dashboard')}
                   disabled={loading}
-                  className="px-6 bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400 font-semibold py-2 rounded-lg hover:bg-red-200 dark:hover:bg-red-900/60 transition disabled:opacity-50 flex items-center gap-2"
+                  className="sm:px-6 bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400 font-semibold py-3 px-4 rounded-lg hover:bg-red-200 dark:hover:bg-red-900/60 transition disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                   <X size={20} />
                   Cancelar
@@ -154,7 +154,7 @@ export const PoemEditor: React.FC<{ poemId?: string }> = ({ poemId }) => {
 
         {/* Plantillas */}
         <div>
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 sticky top-8">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4 sm:p-6 sticky top-20">
             <h3 className="text-lg font-bold mb-4 text-gray-800 dark:text-gray-100">
               Plantillas Disponibles
             </h3>

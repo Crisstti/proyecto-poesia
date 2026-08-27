@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { commentsService } from '../services';
 import { Comment } from '../types';
@@ -18,6 +19,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
   poemTitle
 }) => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState('');
   const [loading, setLoading] = useState(true);
@@ -99,11 +101,19 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
             >
               <div className="flex justify-between items-start gap-2">
                 <div className="flex items-center gap-2 mb-2">
-                  <Avatar name={comment.authorName} size="sm" />
+                  <button
+                    onClick={() => navigate(`/user/${comment.userId}`)}
+                    className="flex-shrink-0"
+                  >
+                    <Avatar name={comment.authorName} size="sm" />
+                  </button>
                   <div>
-                    <span className="font-semibold text-sm text-gray-800 dark:text-gray-100">
+                    <button
+                      onClick={() => navigate(`/user/${comment.userId}`)}
+                      className="font-semibold text-sm text-gray-800 dark:text-gray-100 hover:text-primary dark:hover:text-primary transition text-left"
+                    >
                       {comment.authorName}
-                    </span>
+                    </button>
                     <p className="text-xs text-gray-400 dark:text-gray-500">
                       {formatDate(comment.createdAt)}
                     </p>

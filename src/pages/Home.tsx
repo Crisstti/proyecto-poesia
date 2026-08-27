@@ -16,7 +16,7 @@ export const Home: React.FC = () => {
         </div>
 
         <h1 className="text-5xl md:text-6xl font-bold text-white mb-6">
-          Poesia
+          Palabras en Poemas
         </h1>
 
         <p className="text-xl md:text-2xl text-gray-300 mb-4 max-w-3xl mx-auto">
@@ -140,7 +140,7 @@ export const Home: React.FC = () => {
       {/* Footer */}
       <footer className="border-t border-white/10 py-8 text-center text-gray-400 dark:text-gray-500">
         <p className="flex items-center justify-center gap-2 text-sm mb-2">
-          Poesia ✦ <span className="italic">Palabras en Poemas</span>
+          Poesía ✦ <span className="italic">Palabras en Poemas</span>
         </p>
         <p className="text-xs text-gray-500 dark:text-gray-600 mb-2">
           <a

@@ -41,7 +41,7 @@ export const Dashboard: React.FC = () => {
       console.error('Error loading pending count:', err);
     }
   };
-  
+
   const loadUnreadCount = async () => {
     if (!user) return;
     try {
@@ -94,39 +94,41 @@ export const Dashboard: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center">
             <div>
-              <h1 className="text-4xl font-bold mb-2">Mi Biblioteca</h1>
+              <h1 className="text-3xl sm:text-4xl font-bold mb-2">Mi Biblioteca</h1>
               <p className="text-white/80">Gestiona y crea tus poesías</p>
             </div>
             <button
               onClick={() => navigate('/editor')}
-              className="bg-white text-primary font-bold py-3 px-6 rounded-lg hover:bg-gray-100 transition flex items-center gap-2"
+              className="bg-white text-primary font-bold py-3 px-4 sm:px-6 rounded-lg hover:bg-gray-100 transition flex items-center gap-2 text-sm sm:text-base"
             >
               <Plus size={20} />
-              Nueva Poesía
+              <span className="hidden sm:inline">Nueva Poesía</span>
+              <span className="sm:hidden">Nueva</span>
             </button>
           </div>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        {/* Tabs */}
-        <div className="flex gap-2 mb-6 border-b dark:border-gray-700">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
+
+        {/* Tabs — 2 columnas en móvil, fila en desktop */}
+        <div className="grid grid-cols-2 sm:flex gap-2 mb-6 border-b dark:border-gray-700">
           {tabs.map(({ key, label, icon: Icon, badge }) => (
             <button
               key={key}
               onClick={() => {
-  		if (key === 'contacts') navigate('/contacts');
-  		else if (key === 'messages') navigate('/messages');
-  		else setTab(key);
-	      }}
-              className={`flex items-center gap-2 px-6 py-3 font-semibold transition border-b-2 -mb-px ${
+                if (key === 'contacts') navigate('/contacts');
+                else if (key === 'messages') navigate('/messages');
+                else setTab(key);
+              }}
+              className={`flex items-center justify-center gap-2 px-3 sm:px-6 py-3 font-semibold transition border-b-2 -mb-px text-sm sm:text-base ${
                 tab === key
                   ? 'border-primary text-primary'
                   : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
               }`}
             >
               <Icon size={18} />
-              {label}
+              <span>{label}</span>
               {badge !== undefined && badge > 0 && (
                 <span className="bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-xs font-bold px-2 py-0.5 rounded-full">
                   {badge}
@@ -144,12 +146,12 @@ export const Dashboard: React.FC = () => {
         {/* Tab: Mis Poesías */}
         {tab === 'all' && (
           <>
-            <div className="flex gap-4 mb-8">
+            <div className="flex gap-2 sm:gap-4 mb-8 flex-wrap">
               {(['all', 'published', 'drafts'] as const).map(f => (
                 <button
                   key={f}
                   onClick={() => setFilter(f)}
-                  className={`px-6 py-2 rounded-lg font-semibold transition ${
+                  className={`px-4 sm:px-6 py-2 rounded-lg font-semibold transition text-sm sm:text-base ${
                     filter === f
                       ? 'bg-primary text-white'
                       : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700'
@@ -170,7 +172,9 @@ export const Dashboard: React.FC = () => {
               <div className="text-center py-12">
                 <BookOpen className="mx-auto text-gray-300 dark:text-gray-600 mb-4" size={48} />
                 <h3 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-2">
-                  {filter === 'all' ? 'No tienes poesías aún' : `No tienes ${filter === 'published' ? 'poesías publicadas' : 'borradores'}`}
+                  {filter === 'all'
+                    ? 'No tienes poesías aún'
+                    : `No tienes ${filter === 'published' ? 'poesías publicadas' : 'borradores'}`}
                 </h3>
                 <p className="text-gray-600 dark:text-gray-400 mb-6">
                   Empieza a crear tu primera poesía ahora mismo
