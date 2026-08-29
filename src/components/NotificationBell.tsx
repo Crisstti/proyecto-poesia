@@ -135,7 +135,7 @@ export const NotificationBell: React.FC = () => {
 
       {/* Panel de notificaciones */}
       {showPanel && (
-        <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-gray-800 rounded-lg shadow-2xl z-50 overflow-hidden">
+        <div className="fixed sm:absolute left-2 right-2 sm:left-auto sm:right-0 sm:w-80 mt-2 bg-white dark:bg-gray-800 rounded-lg shadow-2xl z-50 overflow-hidden mx-auto sm:mx-0" style={{ top: '4rem' }}>
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b dark:border-gray-700">
             <h3 className="font-bold text-gray-800 dark:text-gray-100">
