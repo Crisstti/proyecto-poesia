@@ -47,7 +47,7 @@ export interface Message {
 export interface Notification {
   $id: string;
   userId: string;
-  type: 'like' | 'comment' | 'friend_request' | 'message';
+  type: 'like' | 'comment' | 'friend_request' | 'message' | 'report';
   fromUserId: string;
   fromUserName: string;
   message: string;

@@ -18,10 +18,85 @@ import {
   Query,
   Permission,
   Role,
-  DELETE_USER_FUNCTION_ID
+  SOCIAL_ACTIONS_FUNCTION_ID
 } from './appwrite';
 
-const ADMIN_ID = '6a6617dc00119938ce6e';
+const functions = new Functions(appwrite.client);
+
+interface SocialActionResponse {
+  success: boolean;
+  message?: string;
+  [key: string]: unknown;
+}
+
+const executeSocialAction = async <T>(
+  action: string,
+  payload: Record<string, string>
+): Promise<T> => {
+  const response = await functions.createExecution(
+    SOCIAL_ACTIONS_FUNCTION_ID,
+    JSON.stringify({ action, ...payload }),
+    false
+  );
+
+  let result: SocialActionResponse & T;
+  try {
+    result = JSON.parse(response.responseBody) as SocialActionResponse & T;
+  } catch {
+    throw new Error('La función social-actions devolvió una respuesta inválida');
+  }
+
+  if (!result.success) {
+    throw new Error(result.message || 'La acción social no pudo completarse');
+  }
+
+  return result as T;
+};
+
+// Las notificaciones son de mejor esfuerzo: si fallan, la acción principal no se rompe
+const notifySafely = async (
+  action: string,
+  payload: Record<string, string>
+): Promise<void> => {
+  try {
+    await executeSocialAction(action, payload);
+  } catch (err) {
+    console.warn(`No se pudo enviar la notificación (${action}):`, err);
+  }
+};
+
+const socialActionsService = {
+  notifyLike: (poemId: string) =>
+    notifySafely('notifyLike', { poemId }),
+
+  notifyComment: (commentId: string) =>
+    notifySafely('notifyComment', { commentId }),
+
+  notifyFriendRequest: (friendshipId: string) =>
+    notifySafely('notifyFriendRequest', { friendshipId }),
+
+  notifyFriendAccepted: (friendshipId: string) =>
+    notifySafely('notifyFriendAccepted', { friendshipId }),
+
+  async reportPoem(poemId: string, reason: string): Promise<void> {
+    await executeSocialAction('reportPoem', { poemId, reason });
+  },
+
+  async sendMessage(receiverId: string, content: string): Promise<Message> {
+    const result = await executeSocialAction<{ message: Message }>(
+      'sendMessage',
+      { receiverId, content }
+    );
+    if (!result.message) {
+      throw new Error('La función social-actions no devolvió el mensaje creado');
+    }
+    return result.message;
+  },
+
+  async markMessagesRead(otherUserId: string): Promise<void> {
+    await executeSocialAction('markMessagesRead', { otherUserId });
+  }
+};
 
 // Authentication Services
 export const authService = {
@@ -63,7 +138,7 @@ export const authService = {
   }
 };
 
-// ⚠️ Notifications Services — declarado PRIMERO
+// Notifications Services
 export const notificationsService = {
   async createNotification(
     userId: string,
@@ -74,27 +149,11 @@ export const notificationsService = {
     linkTo?: string,
     urgent?: boolean
   ): Promise<void> {
-    if (userId === fromUserId) return;
-    try {
-      await databases.createDocument(
-        DB_ID,
-        NOTIFICATIONS_COLLECTION_ID,
-        ID.unique(),
-        {
-          userId,
-          type,
-          fromUserId,
-          fromUserName,
-          message,
-          read: false,
-          createdAt: new Date().toISOString(),
-          linkTo: linkTo || '',
-          urgent: urgent || false
-        }
-      );
-    } catch (err) {
-      console.error('Error creating notification:', err);
-    }
+    console.warn(
+      `createNotification obsoleto para ${type}; usa una acción social específica`,
+      { userId, fromUserId, fromUserName, message, linkTo, urgent }
+    );
+    throw new Error('Las notificaciones deben crearse mediante social-actions');
   },
 
   async getNotifications(userId: string): Promise<Notification[]> {
@@ -257,14 +316,11 @@ export const likesService = {
     return response.documents.length > 0 ? response.documents[0].$id : null;
   },
 
-  async likePoem(poemId: string, userId: string, userName: string, poemAuthorId: string, poemTitle: string): Promise<void> {
+  async likePoem(poemId: string, userId: string, _userName: string, _poemAuthorId: string, _poemTitle: string): Promise<void> {
     await databases.createDocument(DB_ID, LIKES_COLLECTION_ID, ID.unique(), { poemId, userId },
       [Permission.read(Role.user(userId)), Permission.delete(Role.user(userId))]
     );
-    await notificationsService.createNotification(
-      poemAuthorId, 'like', userId, userName,
-      `A ${userName} le encantó tu poesía "${poemTitle}"`, `/poem/${poemId}`
-    );
+    await socialActionsService.notifyLike(poemId);
   },
 
   async unlikePoem(likeDocumentId: string): Promise<void> {
@@ -307,41 +363,107 @@ export const favoritesService = {
   }
 };
 
+// ---------- Helpers de amistades ----------
+const FRIENDSHIP_RANK: Record<Friendship['status'], number> = {
+  accepted: 0,
+  pending: 1,
+  rejected: 2
+};
+
+// Todos los documentos de amistad entre dos usuarios, en ambas direcciones
+const findFriendshipDocs = async (a: string, b: string): Promise<Friendship[]> => {
+  const [sent, received] = await Promise.all([
+    databases.listDocuments(DB_ID, FRIENDSHIPS_COLLECTION_ID, [
+      Query.equal('senderId', a), Query.equal('receiverId', b), Query.limit(100)
+    ]),
+    databases.listDocuments(DB_ID, FRIENDSHIPS_COLLECTION_ID, [
+      Query.equal('senderId', b), Query.equal('receiverId', a), Query.limit(100)
+    ])
+  ]);
+  return [...sent.documents, ...received.documents] as unknown as Friendship[];
+};
+
+const deleteFriendshipDocs = async (docs: Friendship[]): Promise<void> => {
+  await Promise.allSettled(
+    docs.map(d => databases.deleteDocument(DB_ID, FRIENDSHIPS_COLLECTION_ID, d.$id))
+  );
+};
+
+// Una sola entrada por persona, aunque existan duplicados en la base de datos
+const uniqueByCounterpart = (list: Friendship[], me: string): Friendship[] => {
+  const seen = new Set<string>();
+  return list.filter(f => {
+    const other = f.senderId === me ? f.receiverId : f.senderId;
+    if (seen.has(other)) return false;
+    seen.add(other);
+    return true;
+  });
+};
+
 // Friendships Services
 export const friendshipsService = {
-  async sendRequest(senderId: string, senderName: string, receiverId: string): Promise<Friendship> {
+  async sendRequest(
+    senderId: string,
+    _senderName: string,
+    receiverId: string
+  ): Promise<Friendship> {
+    const docs = await findFriendshipDocs(senderId, receiverId);
+
+    // Si ya hay una relación activa (aceptada o pendiente), no crear otra
+    const active = docs
+      .filter(d => d.status !== 'rejected')
+      .sort((x, y) => FRIENDSHIP_RANK[x.status] - FRIENDSHIP_RANK[y.status])[0];
+    if (active) return active;
+
+    // Solo quedan restos rechazados: se limpian y se crea una solicitud nueva
+    await deleteFriendshipDocs(docs);
+
     const response = await databases.createDocument(
       DB_ID, FRIENDSHIPS_COLLECTION_ID, ID.unique(),
       { senderId, receiverId, status: 'pending' }
     );
-    await notificationsService.createNotification(
-      receiverId, 'friend_request', senderId, senderName,
-      `${senderName} te envió una solicitud de amistad`, `/contacts`
-    );
-    return response as Friendship;
+    const created = response as unknown as Friendship;
+    await socialActionsService.notifyFriendRequest(created.$id);
+    return created;
   },
 
   async getFriendshipBetween(userId1: string, userId2: string): Promise<Friendship | null> {
-    const [sent, received] = await Promise.all([
-      databases.listDocuments(DB_ID, FRIENDSHIPS_COLLECTION_ID, [Query.equal('senderId', userId1), Query.equal('receiverId', userId2)]),
-      databases.listDocuments(DB_ID, FRIENDSHIPS_COLLECTION_ID, [Query.equal('senderId', userId2), Query.equal('receiverId', userId1)])
-    ]);
-    if (sent.documents.length > 0) return sent.documents[0] as Friendship;
-    if (received.documents.length > 0) return received.documents[0] as Friendship;
-    return null;
+    const docs = await findFriendshipDocs(userId1, userId2);
+    if (docs.length === 0) return null;
+    // Prioridad: aceptada > pendiente > rechazada
+    return [...docs].sort(
+      (x, y) => FRIENDSHIP_RANK[x.status] - FRIENDSHIP_RANK[y.status]
+    )[0];
   },
 
-  async acceptRequest(friendshipId: string, acceptorName: string, senderId: string): Promise<void> {
-    await databases.updateDocument(DB_ID, FRIENDSHIPS_COLLECTION_ID, friendshipId, { status: 'accepted' });
-    // Notificar al que envió la solicitud
-    await notificationsService.createNotification(
-      senderId, 'friend_request', ADMIN_ID, acceptorName,
-      `${acceptorName} aceptó tu solicitud de amistad`, `/contacts`
+  async acceptRequest(
+    friendshipId: string,
+    _acceptorName: string,
+    _senderId: string
+  ): Promise<void> {
+    const doc = (await databases.getDocument(
+      DB_ID, FRIENDSHIPS_COLLECTION_ID, friendshipId
+    )) as unknown as Friendship;
+
+    await databases.updateDocument(
+      DB_ID, FRIENDSHIPS_COLLECTION_ID, friendshipId, { status: 'accepted' }
     );
+
+    // Limpiar duplicados del mismo par de usuarios
+    try {
+      const docs = await findFriendshipDocs(doc.senderId, doc.receiverId);
+      await deleteFriendshipDocs(docs.filter(d => d.$id !== friendshipId));
+    } catch (err) {
+      console.warn('No se pudieron limpiar duplicados de amistad:', err);
+    }
+
+    await socialActionsService.notifyFriendAccepted(friendshipId);
   },
 
   async rejectRequest(friendshipId: string): Promise<void> {
-    await databases.updateDocument(DB_ID, FRIENDSHIPS_COLLECTION_ID, friendshipId, { status: 'rejected' });
+    await databases.updateDocument(
+      DB_ID, FRIENDSHIPS_COLLECTION_ID, friendshipId, { status: 'rejected' }
+    );
   },
 
   async cancelRequest(friendshipId: string): Promise<void> {
@@ -350,32 +472,54 @@ export const friendshipsService = {
 
   async getFriends(userId: string): Promise<Friendship[]> {
     const [sent, received] = await Promise.all([
-      databases.listDocuments(DB_ID, FRIENDSHIPS_COLLECTION_ID, [Query.equal('senderId', userId), Query.equal('status', 'accepted')]),
-      databases.listDocuments(DB_ID, FRIENDSHIPS_COLLECTION_ID, [Query.equal('receiverId', userId), Query.equal('status', 'accepted')])
+      databases.listDocuments(DB_ID, FRIENDSHIPS_COLLECTION_ID, [
+        Query.equal('senderId', userId), Query.equal('status', 'accepted'), Query.limit(100)
+      ]),
+      databases.listDocuments(DB_ID, FRIENDSHIPS_COLLECTION_ID, [
+        Query.equal('receiverId', userId), Query.equal('status', 'accepted'), Query.limit(100)
+      ])
     ]);
-    return [...sent.documents, ...received.documents] as Friendship[];
+    const all = [...sent.documents, ...received.documents] as unknown as Friendship[];
+    return uniqueByCounterpart(all, userId);
   },
 
   async getPendingReceived(userId: string): Promise<Friendship[]> {
     const response = await databases.listDocuments(DB_ID, FRIENDSHIPS_COLLECTION_ID, [
-      Query.equal('receiverId', userId), Query.equal('status', 'pending')
+      Query.equal('receiverId', userId), Query.equal('status', 'pending'), Query.limit(100)
     ]);
-    return response.documents as Friendship[];
+    return uniqueByCounterpart(response.documents as unknown as Friendship[], userId);
   },
 
   async getPendingSent(userId: string): Promise<Friendship[]> {
     const response = await databases.listDocuments(DB_ID, FRIENDSHIPS_COLLECTION_ID, [
-      Query.equal('senderId', userId), Query.equal('status', 'pending')
+      Query.equal('senderId', userId), Query.equal('status', 'pending'), Query.limit(100)
     ]);
-    return response.documents as Friendship[];
+    return uniqueByCounterpart(response.documents as unknown as Friendship[], userId);
   },
 
   getFriendId(friendship: Friendship, currentUserId: string): string {
-    return friendship.senderId === currentUserId ? friendship.receiverId : friendship.senderId;
+    return friendship.senderId === currentUserId
+      ? friendship.receiverId
+      : friendship.senderId;
   },
 
+  // Elimina TODOS los documentos de amistad entre ambos, no solo uno
   async removeFriend(friendshipId: string): Promise<void> {
-    await databases.deleteDocument(DB_ID, FRIENDSHIPS_COLLECTION_ID, friendshipId);
+    let docs: Friendship[] = [];
+    try {
+      const doc = (await databases.getDocument(
+        DB_ID, FRIENDSHIPS_COLLECTION_ID, friendshipId
+      )) as unknown as Friendship;
+      docs = await findFriendshipDocs(doc.senderId, doc.receiverId);
+    } catch {
+      // Si no se pudo leer, se intenta borrar el documento indicado
+    }
+
+    if (docs.length === 0) {
+      await databases.deleteDocument(DB_ID, FRIENDSHIPS_COLLECTION_ID, friendshipId);
+      return;
+    }
+    await deleteFriendshipDocs(docs);
   }
 };
 
@@ -388,16 +532,13 @@ export const commentsService = {
     return response.documents as Comment[];
   },
 
-  async createComment(poemId: string, userId: string, authorName: string, content: string, poemAuthorId: string, poemTitle: string): Promise<Comment> {
+  async createComment(poemId: string, userId: string, authorName: string, content: string, _poemAuthorId: string, _poemTitle: string): Promise<Comment> {
     const response = await databases.createDocument(
       DB_ID, COMMENTS_COLLECTION_ID, ID.unique(),
       { poemId, userId, authorName, content, createdAt: new Date().toISOString() },
       [Permission.read(Role.any()), Permission.delete(Role.user(userId))]
     );
-    await notificationsService.createNotification(
-      poemAuthorId, 'comment', userId, authorName,
-      `${authorName} comentó tu poesía "${poemTitle}"`, `/poem/${poemId}`
-    );
+    await socialActionsService.notifyComment(response.$id);
     return response as Comment;
   },
 
@@ -422,20 +563,16 @@ export const messagesService = {
     return all.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
   },
 
-  async sendMessage(senderId: string, senderName: string, receiverId: string, content: string): Promise<Message> {
-    const response = await databases.createDocument(
-      DB_ID, MESSAGES_COLLECTION_ID, ID.unique(),
-      { senderId, receiverId, content, createdAt: new Date().toISOString(), read: false }
-    );
-    await notificationsService.createNotification(
-      receiverId, 'message', senderId, senderName,
-      `${senderName} te envió un mensaje`, `/messages/${senderId}`
-    );
-    return response as Message;
+  async sendMessage(_senderId: string, _senderName: string, receiverId: string, content: string): Promise<Message> {
+    return socialActionsService.sendMessage(receiverId, content);
   },
 
   async markAsRead(messageId: string): Promise<void> {
     await databases.updateDocument(DB_ID, MESSAGES_COLLECTION_ID, messageId, { read: true });
+  },
+
+  async markConversationRead(otherUserId: string): Promise<void> {
+    await socialActionsService.markMessagesRead(otherUserId);
   },
 
   async getAllUserMessages(userId: string): Promise<Message[]> {
@@ -462,46 +599,12 @@ export const messagesService = {
 export const reportsService = {
   async reportPoem(
     poemId: string,
-    reporterId: string,
+    _reporterId: string,
     reason: string,
-    poemAuthorId: string,
-    poemTitle: string
+    _poemAuthorId: string,
+    _poemTitle: string
   ): Promise<void> {
-    await databases.createDocument(
-      DB_ID, REPORTS_COLLECTION_ID, ID.unique(),
-      { poemId, reporterId, reason, poemAuthorId, poemTitle, createdAt: new Date().toISOString() }
-    );
-
-    // Notificación básica al admin
-    await notificationsService.createNotification(
-      ADMIN_ID, 'comment', reporterId, 'Sistema',
-      `Nueva denuncia: "${reason}" en la poesía "${poemTitle}"`, `/admin`
-    );
-
-    // Verificar reincidencia por poesía (≥2 reportes en la misma poesía)
-    const reportsByPoem = await databases.listDocuments(DB_ID, REPORTS_COLLECTION_ID, [
-      Query.equal('poemId', poemId)
-    ]);
-    if (reportsByPoem.total >= 2) {
-      await notificationsService.createNotification(
-        ADMIN_ID, 'comment', reporterId, 'Sistema',
-        `⚠️ Reincidente por poesía: "${poemTitle}" acumula ${reportsByPoem.total} reportes`,
-        `/admin`, true
-      );
-    }
-
-    // Verificar reincidencia por autor (≥2 reportes en distintas poesías del mismo autor)
-    const reportsByAuthor = await databases.listDocuments(DB_ID, REPORTS_COLLECTION_ID, [
-      Query.equal('poemAuthorId', poemAuthorId)
-    ]);
-    const uniquePoems = new Set(reportsByAuthor.documents.map((r: any) => r.poemId));
-    if (uniquePoems.size >= 2) {
-      await notificationsService.createNotification(
-        ADMIN_ID, 'comment', reporterId, 'Sistema',
-        `⚠️ Reincidente por autor: tiene reportes en ${uniquePoems.size} poesías distintas`,
-        `/admin`, true
-      );
-    }
+    await socialActionsService.reportPoem(poemId, reason);
   },
 
   async hasReported(poemId: string, reporterId: string): Promise<boolean> {
@@ -512,122 +615,21 @@ export const reportsService = {
   }
 };
 
-// Admin Functions
-const functions = new Functions(appwrite.client);
+// Cuentas: el borrado lo hace la función en el servidor
+export const accountService = {
+  async deleteMyAccount(confirmEmail: string): Promise<void> {
+    await executeSocialAction('deleteMyAccount', { confirmEmail });
+  }
+};
 
+// Admin
 export const adminService = {
   async deleteUser(userId: string): Promise<void> {
-    const response = await functions.createExecution(
-      DELETE_USER_FUNCTION_ID,
-      JSON.stringify({ userId }),
-      false
-    );
-    const result = JSON.parse(response.responseBody);
-    if (!result.success) {
-      throw new Error(result.message || 'Error al eliminar usuario');
-    }
+    await executeSocialAction('adminDeleteUser', { userId });
   }
 };
 
-// Limpieza completa de datos de usuario
-export const cleanupUserData = async (userId: string): Promise<void> => {
-  try {
-    // 1. Eliminar todas las poesías (y sus likes, comentarios, favoritos asociados)
-    const userPoems = await poemsService.getUserPoems(userId);
-    await Promise.allSettled(userPoems.map(p => poemsService.deletePoem(p.$id)));
 
-    // 2. Eliminar likes que el usuario dio a otras poesías
-    const likesGiven = await databases.listDocuments(DB_ID, LIKES_COLLECTION_ID, [
-      Query.equal('userId', userId)
-    ]);
-    await Promise.allSettled(
-      likesGiven.documents.map(doc =>
-        databases.deleteDocument(DB_ID, LIKES_COLLECTION_ID, doc.$id)
-      )
-    );
-
-    // 3. Eliminar comentarios que el usuario hizo en otras poesías
-    const commentsGiven = await databases.listDocuments(DB_ID, COMMENTS_COLLECTION_ID, [
-      Query.equal('userId', userId)
-    ]);
-    await Promise.allSettled(
-      commentsGiven.documents.map(doc =>
-        databases.deleteDocument(DB_ID, COMMENTS_COLLECTION_ID, doc.$id)
-      )
-    );
-
-    // 4. Eliminar favoritos que el usuario guardó
-    const favoritesGiven = await databases.listDocuments(DB_ID, FAVORITES_COLLECTION_ID, [
-      Query.equal('userId', userId)
-    ]);
-    await Promise.allSettled(
-      favoritesGiven.documents.map(doc =>
-        databases.deleteDocument(DB_ID, FAVORITES_COLLECTION_ID, doc.$id)
-      )
-    );
-
-    // 5. Eliminar amistades (enviadas y recibidas)
-    const [friendsSent, friendsReceived] = await Promise.all([
-      databases.listDocuments(DB_ID, FRIENDSHIPS_COLLECTION_ID, [Query.equal('senderId', userId)]),
-      databases.listDocuments(DB_ID, FRIENDSHIPS_COLLECTION_ID, [Query.equal('receiverId', userId)])
-    ]);
-    await Promise.allSettled([
-      ...friendsSent.documents.map(doc =>
-        databases.deleteDocument(DB_ID, FRIENDSHIPS_COLLECTION_ID, doc.$id)
-      ),
-      ...friendsReceived.documents.map(doc =>
-        databases.deleteDocument(DB_ID, FRIENDSHIPS_COLLECTION_ID, doc.$id)
-      )
-    ]);
-
-    // 6. Eliminar mensajes enviados y recibidos
-    const [messagesSent, messagesReceived] = await Promise.all([
-      databases.listDocuments(DB_ID, MESSAGES_COLLECTION_ID, [Query.equal('senderId', userId)]),
-      databases.listDocuments(DB_ID, MESSAGES_COLLECTION_ID, [Query.equal('receiverId', userId)])
-    ]);
-    await Promise.allSettled([
-      ...messagesSent.documents.map(doc =>
-        databases.deleteDocument(DB_ID, MESSAGES_COLLECTION_ID, doc.$id)
-      ),
-      ...messagesReceived.documents.map(doc =>
-        databases.deleteDocument(DB_ID, MESSAGES_COLLECTION_ID, doc.$id)
-      )
-    ]);
-
-    // 7. Eliminar notificaciones enviadas y recibidas
-    const [notifReceived, notifSent] = await Promise.all([
-      databases.listDocuments(DB_ID, NOTIFICATIONS_COLLECTION_ID, [Query.equal('userId', userId)]),
-      databases.listDocuments(DB_ID, NOTIFICATIONS_COLLECTION_ID, [Query.equal('fromUserId', userId)])
-    ]);
-    await Promise.allSettled([
-      ...notifReceived.documents.map(doc =>
-        databases.deleteDocument(DB_ID, NOTIFICATIONS_COLLECTION_ID, doc.$id)
-      ),
-      ...notifSent.documents.map(doc =>
-        databases.deleteDocument(DB_ID, NOTIFICATIONS_COLLECTION_ID, doc.$id)
-      )
-    ]);
-
-    // 8. Eliminar reportes hechos por el usuario
-    const reportsMade = await databases.listDocuments(DB_ID, REPORTS_COLLECTION_ID, [
-      Query.equal('reporterId', userId)
-    ]);
-    await Promise.allSettled(
-      reportsMade.documents.map(doc =>
-        databases.deleteDocument(DB_ID, REPORTS_COLLECTION_ID, doc.$id)
-      )
-    );
-
-    // 9. Eliminar perfil de la colección users
-    try {
-      await databases.deleteDocument(DB_ID, USERS_COLLECTION_ID, userId);
-    } catch {}
-
-  } catch (err) {
-    console.error('Error in cleanupUserData:', err);
-    throw err;
-  }
-};
 
 // User Profile Services
 export const userService = {

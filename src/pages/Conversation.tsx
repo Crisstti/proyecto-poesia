@@ -54,8 +54,11 @@ export const Conversation: React.FC = () => {
 
         setMessages(filtered);
 
-        const unread = filtered.filter(m => m.receiverId === user.$id && !m.read);
-        unread.forEach(m => messagesService.markAsRead(m.$id));
+        if (filtered.some(m => m.receiverId === user.$id && !m.read)) {
+          messagesService
+            .markConversationRead(otherUserId)
+            .catch(err => console.warn('No se pudo marcar como leído:', err));
+        }
       } catch (err) {
         console.error('Error loading conversation:', err);
       } finally {
@@ -92,7 +95,9 @@ export const Conversation: React.FC = () => {
       });
 
       if (payload.receiverId === user.$id) {
-        messagesService.markAsRead(payload.$id);
+        messagesService
+          .markConversationRead(otherUserId)
+          .catch(err => console.warn('No se pudo marcar como leído:', err));
       }
     });
 

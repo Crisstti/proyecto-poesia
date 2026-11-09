@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { validatePassword } from '../utils';
 import { translateAppwriteError } from '../utils/errorMessages';
 import { Settings as SettingsIcon, AlertCircle, CheckCircle, Lock, ArrowLeft, Trash2 } from 'lucide-react';
-import { authService, poemsService, userService, likesService, commentsService, favoritesService, friendshipsService, messagesService } from '../services';
+import { accountService, authService, poemsService, userService, likesService, commentsService, favoritesService, friendshipsService, messagesService } from '../services';
 
 export const Settings: React.FC = () => {
   const { updatePassword, user, logout } = useAuth();
@@ -46,7 +46,7 @@ export const Settings: React.FC = () => {
 
   const handleDeleteAccount = async () => {
     if (!user) return;
-    if (deleteConfirmEmail !== user.email) {
+    if (deleteConfirmEmail.trim().toLowerCase() !== user.email.toLowerCase()) {
       setDeleteError('El email no coincide con el de tu cuenta.');
       return;
     }
@@ -55,25 +55,21 @@ export const Settings: React.FC = () => {
     setDeleteError('');
 
     try {
-      const userId = user.$id;
+      await accountService.deleteMyAccount(user.email);
 
-      // 1. Limpiar todos los datos del usuario
-      const { cleanupUserData, adminService } = await import('../services');
-      await cleanupUserData(userId);
-
-      // 2. Cerrar sesión primero (antes de eliminar la cuenta)
-      await logout();
-
-      // 3. Eliminar la cuenta de Auth via Appwrite Function
-      try {
-        await adminService.deleteUser(userId);
-      } catch (authErr: any) {
-        console.warn('No se pudo eliminar cuenta de Auth:', authErr.message);
-      }
-
-      navigate('/');
+      // La cuenta ya no existe: limpiar la sesión local y volver al inicio
+      try { await logout(); } catch {}
+      window.location.assign('/');
     } catch (err) {
       console.error('Error deleting account:', err);
+
+      // Si la cuenta ya no existe, el borrado sí se completó
+      const stillThere = await authService.getCurrentUser();
+      if (!stillThere) {
+        window.location.assign('/');
+        return;
+      }
+
       setDeleteError('Ocurrió un error al eliminar la cuenta. Intenta de nuevo.');
       setDeleting(false);
     }
@@ -189,24 +185,14 @@ export const Settings: React.FC = () => {
 
             <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 mb-4">
               <p className="text-sm text-red-700 dark:text-red-400 font-semibold mb-2">
-                ⚠️ Esta acción eliminará permanentemente todos tus datos
+                ⚠️ Esta acción es permanente e irreversible
               </p>
               <ul className="text-sm text-red-600 dark:text-red-400 space-y-1">
-                <li>✦ Se eliminarán todas tus poesías publicadas y borradores</li>
-                <li>✦ Se eliminarán todos tus comentarios en otras poesías</li>
+                <li>✦ Se eliminarán todas tus poesías, publicadas y borradores</li>
+                <li>✦ Se eliminarán tus comentarios, likes y favoritos</li>
                 <li>✦ Se eliminarán tus mensajes y contactos</li>
-                <li>✦ Se eliminarán tus favoritos y likes</li>
-                <li>✦ Tu contenido dejará de ser visible para los demás</li>
+                <li>✦ Se eliminará tu cuenta y no podrás volver a entrar con ella</li>
               </ul>
-              <p className="text-xs text-red-500 dark:text-red-400 mt-3 pt-3 border-t border-red-200 dark:border-red-700">
-                Nota: tus credenciales de acceso (email y contraseña) se conservan por seguridad. Si deseas eliminar completamente tu acceso, contacta a{' '}
-                <a
-                  href="mailto:palabrasenpoemas@gmail.com"
-                  className="underline font-semibold"
-                >
-                  palabrasenpoemas@gmail.com
-                </a>
-              </p>
             </div>
 
             <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">

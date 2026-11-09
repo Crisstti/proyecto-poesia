@@ -154,16 +154,7 @@ export const Admin: React.FC = () => {
     if (!confirmDeleteUser) return;
     setDeletingUser(true);
     try {
-      // 1. Limpiar todos los datos del usuario
-      const { cleanupUserData } = await import('../services');
-      await cleanupUserData(confirmDeleteUser.$id);
-
-      // 2. Eliminar la cuenta de Auth via Appwrite Function
-      try {
-        await adminService.deleteUser(confirmDeleteUser.$id);
-      } catch (authErr: any) {
-        console.warn('Usuario no encontrado en Auth:', authErr.message);
-      }
+      await adminService.deleteUser(confirmDeleteUser.$id);
 
       setAllUsers(prev => prev.filter(u => u.$id !== confirmDeleteUser.$id));
       setConfirmDeleteUser(null);

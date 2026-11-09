@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { notificationsService } from '../services';
 import { appwrite, DB_ID, NOTIFICATIONS_COLLECTION_ID } from '../services/appwrite';
 import { Notification } from '../types';
-import { Bell, Heart, MessageCircle, UserPlus, Mail, Trash2, CheckCheck } from 'lucide-react';
+import { Bell, Heart, MessageCircle, UserPlus, Mail, Trash2, CheckCheck, Flag } from 'lucide-react';
 
 export const NotificationBell: React.FC = () => {
   const { user } = useAuth();
@@ -14,6 +14,31 @@ export const NotificationBell: React.FC = () => {
   const [showPanel, setShowPanel] = useState(false);
   const [loading, setLoading] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
+  const showPanelRef = useRef(false);
+
+  useEffect(() => {
+    showPanelRef.current = showPanel;
+  }, [showPanel]);
+
+  const loadUnreadCount = async () => {
+    if (!user) return;
+    try {
+      const count = await notificationsService.getUnreadCount(user.$id);
+      setUnreadCount(count);
+    } catch (err) {
+      console.error('Error loading unread count:', err);
+    }
+  };
+
+  const loadNotifications = async () => {
+    if (!user) return;
+    try {
+      const data = await notificationsService.getNotifications(user.$id);
+      setNotifications(data);
+    } catch (err) {
+      console.error('Error loading notifications:', err);
+    }
+  };
 
   useEffect(() => {
     if (user) {
@@ -34,57 +59,41 @@ export const NotificationBell: React.FC = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showPanel]);
 
-  // Realtime: actualizar contador cuando llega notificación nueva
+  // Realtime: ante cualquier cambio en MIS notificaciones, consultar el estado real
   useEffect(() => {
     if (!user) return;
     const channel = `databases.${DB_ID}.collections.${NOTIFICATIONS_COLLECTION_ID}.documents`;
     const unsubscribe = appwrite.client.subscribe(channel, (response) => {
-      const isCreate = response.events.some(e => e.endsWith('.create'));
-      if (!isCreate) return;
       const payload = response.payload as Notification;
-      if (payload.userId === user.$id) {
-        setUnreadCount(prev => prev + 1);
-        if (showPanel) {
-          setNotifications(prev => [payload, ...prev]);
-        }
-      }
+      if (payload.userId !== user.$id) return;
+      loadUnreadCount();
+      if (showPanelRef.current) loadNotifications();
     });
     return () => unsubscribe();
-  }, [user, showPanel]);
-
-  const loadUnreadCount = async () => {
-    if (!user) return;
-    try {
-      const count = await notificationsService.getUnreadCount(user.$id);
-      setUnreadCount(count);
-    } catch (err) {
-      console.error('Error loading unread count:', err);
-    }
-  };
+  }, [user]);
 
   const handleOpenPanel = async () => {
     if (!user) return;
-    setShowPanel(prev => !prev);
-    if (!showPanel) {
+    const opening = !showPanel;
+    setShowPanel(opening);
+    if (opening) {
       setLoading(true);
-      try {
-        const data = await notificationsService.getNotifications(user.$id);
-        setNotifications(data);
-      } catch (err) {
-        console.error('Error loading notifications:', err);
-      } finally {
-        setLoading(false);
-      }
+      await loadNotifications();
+      setLoading(false);
     }
   };
 
   const handleNotificationClick = async (notification: Notification) => {
     if (!notification.read) {
-      await notificationsService.markAsRead(notification.$id);
+      try {
+        await notificationsService.markAsRead(notification.$id);
+      } catch (err) {
+        console.error('Error marking notification as read:', err);
+      }
       setNotifications(prev =>
-        prev.map(n => n.$id === notification.$id ? { ...n, read: true } : n)
+        prev.map(n => (n.$id === notification.$id ? { ...n, read: true } : n))
       );
-      setUnreadCount(prev => Math.max(0, prev - 1));
+      loadUnreadCount();
     }
     setShowPanel(false);
     if (notification.linkTo) {
@@ -112,6 +121,8 @@ export const NotificationBell: React.FC = () => {
       case 'comment': return <MessageCircle size={16} className="text-blue-500" />;
       case 'friend_request': return <UserPlus size={16} className="text-green-500" />;
       case 'message': return <Mail size={16} className="text-purple-500" />;
+      case 'report': return <Flag size={16} className="text-red-500" />;
+      default: return <Bell size={16} className="text-gray-400" />;
     }
   };
 
@@ -135,7 +146,10 @@ export const NotificationBell: React.FC = () => {
 
       {/* Panel de notificaciones */}
       {showPanel && (
-        <div className="fixed sm:absolute left-2 right-2 sm:left-auto sm:right-0 sm:w-80 mt-2 bg-white dark:bg-gray-800 rounded-lg shadow-2xl z-50 overflow-hidden mx-auto sm:mx-0" style={{ top: '4rem' }}>
+        <div
+          className="fixed sm:absolute left-2 right-2 sm:left-auto sm:right-0 sm:w-80 mt-2 bg-white dark:bg-gray-800 rounded-lg shadow-2xl z-50 overflow-hidden mx-auto sm:mx-0"
+          style={{ top: '4rem' }}
+        >
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b dark:border-gray-700">
             <h3 className="font-bold text-gray-800 dark:text-gray-100">

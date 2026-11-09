@@ -224,14 +224,11 @@ export const Policies: React.FC = () => {
                 5. Eliminación de cuenta y datos
               </h3>
               <p className="leading-relaxed">
-                Al eliminar tu cuenta desde Configuración, todos tus datos
-                visibles — poesías, comentarios, mensajes, likes y favoritos —
-                serán eliminados permanentemente y dejarán de ser visibles para
-                los demás. Tus credenciales de acceso (email y contraseña) se
-                conservan por razones de seguridad técnica. Si deseas eliminar
-                completamente tu acceso a la plataforma, escríbenos a{' '}
-                <span className="text-primary">palabrasenpoemas@gmail.com</span>{' '}
-                y lo gestionamos en un plazo de 48 horas.
+                Al eliminar tu cuenta desde Configuración, tu cuenta de acceso
+                y todos tus datos (poesías, comentarios, mensajes, likes,
+                favoritos y contactos) se eliminan de forma permanente e
+                irreversible de nuestra base de datos. Esta acción no puede
+                deshacerse.
               </p>
             </div>
 

@@ -13,6 +13,18 @@ interface PoemViewProps {
   onClose: () => void;
 }
 
+// Crea un elemento y le asigna texto de forma segura (nunca interpreta HTML)
+const makeEl = <K extends keyof HTMLElementTagNameMap>(
+  tag: K,
+  css: string,
+  text?: string
+): HTMLElementTagNameMap[K] => {
+  const el = document.createElement(tag);
+  el.style.cssText = css;
+  if (text !== undefined) el.textContent = text;
+  return el;
+};
+
 export const PoemView: React.FC<PoemViewProps> = ({ poem, onClose }) => {
   const { user } = useAuth();
   const [liked, setLiked] = useState(false);
@@ -83,7 +95,7 @@ export const PoemView: React.FC<PoemViewProps> = ({ poem, onClose }) => {
       if (navigator.share) {
         await navigator.share({
           title: poem.title,
-          text: `Lee "${poem.title}" en Poesia`,
+          text: `Lee "${poem.title}" en Palabras en Poemas`,
           url
         });
       } else {
@@ -98,84 +110,89 @@ export const PoemView: React.FC<PoemViewProps> = ({ poem, onClose }) => {
 
   const handleExportImage = async () => {
     setExporting(true);
+    let root: HTMLDivElement | null = null;
+
     try {
-      const element = document.createElement('div');
-      element.style.cssText = `
-        width: 600px;
-        padding: 60px;
-        background: linear-gradient(135deg, #fdf6e3 0%, #f5e6c8 50%, #fdf0d5 100%);
-        font-family: Georgia, serif;
-        position: fixed;
-        left: -9999px;
-        top: 0;
-      `;
+      root = makeEl(
+        'div',
+        `width:600px;padding:60px;box-sizing:border-box;
+         background:linear-gradient(135deg,#fdf6e3 0%,#f5e6c8 50%,#fdf0d5 100%);
+         font-family:Georgia,serif;position:fixed;left:-9999px;top:0;`
+      );
 
-      element.innerHTML = `
-        <div style="border-left: 4px solid #7C3AED; padding-left: 24px; margin-bottom: 32px;">
-          <h1 style="font-size: 28px; color: #2d1b69; margin: 0 0 8px 0; font-family: Georgia, serif;">
-            ${poem.title}
-          </h1>
-          <p style="font-size: 14px; color: #7C3AED; margin: 0; font-style: italic;">
-            Por ${poem.authorName || 'Anónimo'}
-          </p>
-        </div>
+      // Encabezado: título + autor
+      const header = makeEl(
+        'div',
+        'border-left:4px solid #7C3AED;padding-left:24px;margin-bottom:32px;'
+      );
+      header.appendChild(
+        makeEl(
+          'h1',
+          'font-size:28px;color:#2d1b69;margin:0 0 8px 0;font-family:Georgia,serif;',
+          poem.title
+        )
+      );
+      header.appendChild(
+        makeEl(
+          'p',
+          'font-size:14px;color:#7C3AED;margin:0;font-style:italic;',
+          `Por ${poem.authorName || 'Anónimo'}`
+        )
+      );
 
-        <div style="
-          background: rgba(255,255,255,0.5);
-          border-radius: 8px;
-          padding: 32px;
-          margin-bottom: 32px;
-          border: 1px solid rgba(124,58,237,0.15);
-        ">
-          <p style="
-            font-size: 18px;
-            line-height: 1.9;
-            color: #1a1a2e;
-            white-space: pre-wrap;
-            margin: 0;
-            font-family: Georgia, serif;
-          ">${poem.content}</p>
-        </div>
+      // Cuerpo: contenido de la poesía
+      const body = makeEl(
+        'div',
+        `background:rgba(255,255,255,0.5);border-radius:8px;padding:32px;
+         margin-bottom:32px;border:1px solid rgba(124,58,237,0.15);`
+      );
+      body.appendChild(
+        makeEl(
+          'p',
+          `font-size:18px;line-height:1.9;color:#1a1a2e;white-space:pre-wrap;
+           margin:0;font-family:Georgia,serif;word-wrap:break-word;`,
+          poem.content
+        )
+      );
 
-        <div style="
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          border-top: 1px solid rgba(124,58,237,0.2);
-          padding-top: 20px;
-        ">
-          <div>
-            <span style="
-              background: rgba(124,58,237,0.1);
-              color: #7C3AED;
-              padding: 4px 12px;
-              border-radius: 20px;
-              font-size: 12px;
-              font-family: Arial, sans-serif;
-              margin-right: 8px;
-            ">${templateLabel[poem.templateType]}</span>
-            <span style="
-              background: rgba(236,72,153,0.1);
-              color: #EC4899;
-              padding: 4px 12px;
-              border-radius: 20px;
-              font-size: 12px;
-              font-family: Arial, sans-serif;
-            ">${poem.theme}</span>
-          </div>
-          <p style="
-            font-size: 12px;
-            color: #7C3AED;
-            margin: 0;
-            font-family: Arial, sans-serif;
-            font-style: italic;
-          ">✦ Palabras en Poemas</p>
-        </div>
-      `;
+      // Pie: plantilla, tema y marca
+      const footer = makeEl(
+        'div',
+        `display:flex;justify-content:space-between;align-items:center;
+         border-top:1px solid rgba(124,58,237,0.2);padding-top:20px;`
+      );
+      const tags = makeEl('div', '');
+      tags.appendChild(
+        makeEl(
+          'span',
+          `background:rgba(124,58,237,0.1);color:#7C3AED;padding:4px 12px;
+           border-radius:20px;font-size:12px;font-family:Arial,sans-serif;margin-right:8px;`,
+          templateLabel[poem.templateType]
+        )
+      );
+      tags.appendChild(
+        makeEl(
+          'span',
+          `background:rgba(236,72,153,0.1);color:#EC4899;padding:4px 12px;
+           border-radius:20px;font-size:12px;font-family:Arial,sans-serif;`,
+          poem.theme
+        )
+      );
+      footer.appendChild(tags);
+      footer.appendChild(
+        makeEl(
+          'p',
+          `font-size:12px;color:#7C3AED;margin:0;font-family:Arial,sans-serif;font-style:italic;`,
+          '✦ Palabras en Poemas'
+        )
+      );
 
-      document.body.appendChild(element);
+      root.appendChild(header);
+      root.appendChild(body);
+      root.appendChild(footer);
+      document.body.appendChild(root);
 
-      const canvas = await html2canvas(element, {
+      const canvas = await html2canvas(root, {
         scale: 2,
         useCORS: true,
         backgroundColor: null,
@@ -183,15 +200,21 @@ export const PoemView: React.FC<PoemViewProps> = ({ poem, onClose }) => {
         windowWidth: 600
       });
 
-      document.body.removeChild(element);
+      // Nombre de archivo seguro
+      const safeName =
+        poem.title
+          .replace(/[^a-zA-Z0-9áéíóúñÁÉÍÓÚÑ]+/g, '_')
+          .replace(/^_+|_+$/g, '')
+          .slice(0, 60) || 'poesia';
 
       const link = document.createElement('a');
-      link.download = `${poem.title.replace(/\s+/g, '_')}.png`;
+      link.download = `${safeName}.png`;
       link.href = canvas.toDataURL('image/png');
       link.click();
     } catch (err) {
       console.error('Error exporting image:', err);
     } finally {
+      if (root && root.parentNode) root.parentNode.removeChild(root);
       setExporting(false);
     }
   };
@@ -243,7 +266,7 @@ export const PoemView: React.FC<PoemViewProps> = ({ poem, onClose }) => {
             </div>
           </div>
 
-          {/* Acciones — grid de 3 columnas en móvil */}
+          {/* Acciones */}
           <div className="grid grid-cols-3 gap-2 border-t dark:border-gray-600 pt-4">
             <button
               onClick={handleToggleLike}
@@ -257,7 +280,9 @@ export const PoemView: React.FC<PoemViewProps> = ({ poem, onClose }) => {
               <Heart size={18} fill={liked ? 'currentColor' : 'none'} />
               <span className="text-center leading-tight">
                 {liked ? 'Te encanta' : 'Me encanta'}
-                {likesCount > 0 && <span className="block sm:inline sm:ml-1">({likesCount})</span>}
+                {likesCount > 0 && (
+                  <span className="block sm:inline sm:ml-1">({likesCount})</span>
+                )}
               </span>
             </button>
 
